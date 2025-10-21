@@ -1,0 +1,43 @@
+.DS_Store
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# Xcode user data
+xcuserdata/
+StackWise.xcodeproj/project.xcworkspace/xcuserdata/
+StackWise.xcodeproj/xcuserdata/
+
+# Build artifacts
+DerivedData/
+.derived/
+build/
+
+# Swift Package Manager
+.build/
+Package.resolved
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+# SwiftPM Xcode integration
+.swiftpm/xcode/
+
+# Coverage and logs
+*.gcno
+*.gcda
+*.profdata
+*.log
+
+# IDE settings
+.idea/
+.vscode/
