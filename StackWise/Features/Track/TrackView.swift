@@ -70,7 +70,8 @@ public struct TrackView: View {
                             DaySupplementsView(
                                 date: selectedDate,
                                 viewModel: viewModel,
-                                intakeLogManager: intakeLogManager
+                                intakeLogManager: intakeLogManager,
+                                container: container
                             )
                             .transition(.asymmetric(
                                 insertion: .scale.combined(with: .opacity),
@@ -208,6 +209,7 @@ struct DaySupplementsView: View {
     let date: Date
     @ObservedObject var viewModel: TrackViewModel
     @ObservedObject var intakeLogManager: IntakeLogManager
+    let container: DIContainer
     
     private var dateFormatter: DateFormatter {
         let formatter = DateFormatter()
@@ -225,6 +227,31 @@ struct DaySupplementsView: View {
         }
     }
     
+    private func getSupplementCounts() -> (taken: Int, total: Int) {
+        guard let dayData = viewModel.getDayIntakeData(for: date) else {
+            return (0, 0)
+        }
+        
+        // For today and future, only count active supplements
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let targetDate = calendar.startOfDay(for: date)
+        
+        var supplementsToCount = dayData.stackIntakeData
+        
+        if targetDate >= today, let currentStack = container.currentStack {
+            supplementsToCount = supplementsToCount.filter { intakeData in
+                currentStack.allSupplements.contains { supplement in
+                    supplement.id == intakeData.supplementId && supplement.active
+                }
+            }
+        }
+        
+        let taken = supplementsToCount.filter { $0.taken }.count
+        let total = supplementsToCount.count
+        return (taken, total)
+    }
+    
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
             // Header
@@ -235,10 +262,9 @@ struct DaySupplementsView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(Theme.Colors.textPrimary)
                     
-                    if let dayData = viewModel.getDayIntakeData(for: date) {
-                        let taken = dayData.stackIntakeData.filter { $0.taken }.count
-                        let total = dayData.stackIntakeData.count
-                        Text("\(taken) of \(total) supplements taken")
+                    let counts = getSupplementCounts()
+                    if counts.total > 0 {
+                        Text("\(counts.taken) of \(counts.total) supplements taken")
                             .font(Theme.Typography.caption)
                             .foregroundColor(Theme.Colors.textSecondary)
                     }

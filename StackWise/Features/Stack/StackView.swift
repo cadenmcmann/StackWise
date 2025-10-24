@@ -115,19 +115,17 @@ public struct StackView: View {
             }
             .sheet(isPresented: $viewModel.showRemixSheet) {
                 RemixSheet(viewModel: viewModel)
-            }
-            .sheet(item: $selectedSupplement) { supplement in
-                if let binding = viewModel.bindingForSupplement(supplement) {
-                    SupplementDetailSheet(
-                        supplement: supplement,
-                        stackId: viewModel.stack?.id,
-                        isActive: binding,
-                        onToggleActive: { newValue in
-                            await viewModel.toggleSupplementActive(supplementId: supplement.id, active: newValue)
-                        }
-                    )
+        }
+        .fullScreenCover(item: $selectedSupplement) { supplement in
+            SupplementDetailSheet(
+                supplement: supplement,
+                stackId: viewModel.stack?.id,
+                initialActiveState: supplement.active,
+                onToggleActive: { newValue in
+                    await viewModel.toggleSupplementActive(supplementId: supplement.id, active: newValue)
                 }
-            }
+            )
+        }
         }
         .toast(
             isShowing: $showExportSuccess,
@@ -145,7 +143,7 @@ struct SupplementCard: View {
     var body: some View {
         Card(
             title: supplement.name,
-            subtitle: supplement.purposeShort ?? supplement.rationale,
+            subtitle: getSubtitle(),
             tags: createTags(),
             isExpanded: nil,  // Don't use expand/collapse - we'll show details in modal
             onTap: onTap  // Pass through our custom tap handler
@@ -169,17 +167,22 @@ struct SupplementCard: View {
                 
                 Spacer()
                 
-                // Tap to view details hint
-                HStack(spacing: Theme.Spacing.xs) {
-                    Text("Tap for details")
-                        .font(Theme.Typography.caption)
-                        .foregroundColor(Theme.Colors.primary)
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 12))
-                        .foregroundColor(Theme.Colors.primary)
-                }
+                // Subtle indicator
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.Colors.textSecondary.opacity(0.5))
             }
         }
+    }
+    
+    private func getSubtitle() -> String {
+        // Try to get from static database first
+        if let info = SupplementDatabase.shared.getSupplementInfo(by: supplement.id) ??
+                      SupplementDatabase.shared.getSupplementInfo(byName: supplement.name) {
+            return info.purposeShort
+        }
+        // Fall back to supplement's own data
+        return supplement.purposeShort ?? supplement.rationale
     }
     
     private func createTags() -> [CardTagData] {

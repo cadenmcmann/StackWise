@@ -68,25 +68,6 @@ public class StackViewModel: ObservableObject {
         isLoading = false
     }
     
-    func bindingForSupplement(_ supplement: Supplement) -> Binding<Bool>? {
-        guard let stack = stack else { return nil }
-        
-        // Find the supplement in either minimal or addons
-        if let index = stack.minimal.firstIndex(where: { $0.id == supplement.id }) {
-            return Binding(
-                get: { self.stack?.minimal[index].active ?? false },
-                set: { _ in } // We'll handle the actual update in toggleSupplementActive
-            )
-        } else if let index = stack.addons.firstIndex(where: { $0.id == supplement.id }) {
-            return Binding(
-                get: { self.stack?.addons[index].active ?? false },
-                set: { _ in } // We'll handle the actual update in toggleSupplementActive
-            )
-        }
-        
-        return nil
-    }
-    
     func toggleSupplementActive(supplementId: String, active: Bool) async {
         // Optimistically update local state
         stack?.toggleSupplementActive(supplementId: supplementId)

@@ -202,12 +202,15 @@ This document tracks all remaining work to transform the current UI scaffold int
 
 - [x] **Stack Screen Enhancement** (October 2025)
   - [x] Updated Supplement model with purposeShort, purposeLong, scientificFunction
-  - [x] Created SupplementDetailSheet with bottom sheet modal
+  - [x] Created SupplementDetailSheet with full-screen modal
   - [x] Implemented PATCH /stack/{stackId}/supplements integration
   - [x] Added active/inactive supplement filtering
   - [x] Optimistic UI updates for supplement toggling
   - [x] Show/hide inactive supplements feature
   - [x] Stack ID tracking for API integration
+  - [x] Local supplement database with detailed scientific information
+  - [x] Beautiful, professional supplement detail UI with "Why for You" section
+  - [x] Simplified active toggle with tooltip information
 
 - [x] **App Infrastructure Updates**
   - [x] DIContainer updated to use real services

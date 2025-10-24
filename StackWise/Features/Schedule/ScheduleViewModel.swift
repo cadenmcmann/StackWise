@@ -112,7 +112,10 @@ public class ScheduleViewModel: ObservableObject {
         var generatedReminders: [Reminder] = []
         let calendar = Calendar.current
         
-        for supplement in stack.allSupplements {
+        // Only include active supplements
+        let activeSupplements = stack.allSupplements.filter { $0.active }
+        
+        for supplement in activeSupplements {
             // Use schedule times from the supplement
             if let schedule = supplement.schedule {
                 for timeString in schedule.times {

@@ -136,10 +136,28 @@ public class TrackViewModel: ObservableObject {
         let dateString = formatter.string(from: date)
         
         if let dayData = weeklyData.weekData.first(where: { $0.date == dateString }) {
-            let total = dayData.stackIntakeData.count
+            var supplementsToCount = dayData.stackIntakeData
+            
+            // For today and future dates, only count active supplements
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let targetDate = calendar.startOfDay(for: date)
+            
+            if targetDate >= today {
+                // Filter to only active supplements
+                if let currentStack = container.currentStack {
+                    supplementsToCount = supplementsToCount.filter { intakeData in
+                        return currentStack.allSupplements.contains { supplement in
+                            supplement.id == intakeData.supplementId && supplement.active
+                        }
+                    }
+                }
+            }
+            
+            let total = supplementsToCount.count
             
             // Count how many are taken using the IntakeLogManager for accurate state
-            let taken = dayData.stackIntakeData.filter { supplement in
+            let taken = supplementsToCount.filter { supplement in
                 container.intakeLogManager.isSupplementTaken(
                     supplementId: supplement.supplementId,
                     time: supplement.time,
@@ -167,8 +185,27 @@ public class TrackViewModel: ObservableObject {
     func getSupplementsByTime(for date: Date) -> [(time: String, supplements: [SupplementIntakeData])] {
         guard let dayData = getDayIntakeData(for: date) else { return [] }
         
+        var supplementsToShow = dayData.stackIntakeData
+        
+        // For today and future dates, only show active supplements
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let targetDate = calendar.startOfDay(for: date)
+        
+        if targetDate >= today {
+            // Filter to only active supplements for today/future
+            if let currentStack = container.currentStack {
+                supplementsToShow = supplementsToShow.filter { intakeData in
+                    // Check if this supplement is active in the current stack
+                    return currentStack.allSupplements.contains { supplement in
+                        supplement.id == intakeData.supplementId && supplement.active
+                    }
+                }
+            }
+        }
+        
         // Group supplements by time
-        let grouped = Dictionary(grouping: dayData.stackIntakeData) { $0.time }
+        let grouped = Dictionary(grouping: supplementsToShow) { $0.time }
         
         // Order times properly
         let timeOrder = ["morning", "afternoon", "evening", "night"]
