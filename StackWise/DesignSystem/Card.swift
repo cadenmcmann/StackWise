@@ -46,6 +46,7 @@ public struct Card<Content: View>: View {
     let subtitle: String?
     let tags: [CardTagData]
     let isExpanded: Binding<Bool>?
+    let onTap: (() -> Void)?
     let content: () -> Content
     
     public init(
@@ -53,12 +54,14 @@ public struct Card<Content: View>: View {
         subtitle: String? = nil,
         tags: [CardTagData] = [],
         isExpanded: Binding<Bool>? = nil,
+        onTap: (() -> Void)? = nil,
         @ViewBuilder content: @escaping () -> Content
     ) {
         self.title = title
         self.subtitle = subtitle
         self.tags = tags
         self.isExpanded = isExpanded
+        self.onTap = onTap
         self.content = content
     }
     
@@ -125,7 +128,12 @@ public struct Card<Content: View>: View {
         )
         .contentShape(Rectangle())
         .onTapGesture {
-            if let isExpanded = isExpanded {
+            // If custom onTap is provided, use that
+            if let onTap = onTap {
+                onTap()
+            }
+            // Otherwise, use expand/collapse behavior
+            else if let isExpanded = isExpanded {
                 withAnimation(Theme.Animation.standard) {
                     isExpanded.wrappedValue.toggle()
                 }

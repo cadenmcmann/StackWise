@@ -49,22 +49,28 @@ make clean
 - ✅ **Real Authentication** - Email signup/login with backend API
 - ✅ **Dynamic Goals** - Fetched from API
 - ✅ **User Preferences** - Saved to backend
-- ✅ **Stack Generation** - Real recommendations from API
+- ✅ **Stack Generation** - Real recommendations from API with supplement details
+- ✅ **Supplement Management** - Active/inactive toggling with detailed info modal  
 - ✅ **JWT Token Management** - Persistent authentication
+- ✅ **AI-Powered Chat** - Full chat feature with session management
+- ✅ **Chat Sessions** - Multiple conversations with history
+- ✅ **Message Pagination** - Load older messages as needed
+- ✅ **Offline Support** - Local caching for chat sessions and messages
+- ✅ **Progress Tracking** - Daily intake logging via API
 - ✅ **Complete onboarding flow** (10 screens including auth)
 - ✅ **5-tab main app** (Stack, Schedule, Track, Chat, Profile)
 - ✅ **Design system** with reusable components
 - ✅ **Accessibility support**
 - ⚠️ Sign in with Apple (UI only, not functional)
-- ⚠️ Schedule, Track, Chat still using mock data
+- ⚠️ Schedule and Export still using mock data
 
 ### Planned (See TODO.md)
-- 🔄 Real backend API integration
-- 🔄 AI-powered recommendations
-- 🔄 Interactive chat assistant
 - 🔄 Health app integration
 - 🔄 Push notifications
 - 🔄 In-app purchases
+- 🔄 Advanced chat features (streaming, voice input)
+- 🔄 Real PDF/calendar export
+- 🔄 Biometric authentication
 
 ## 🏗 Project Structure
 

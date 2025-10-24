@@ -4,6 +4,8 @@ import SwiftUI
 public struct StackView: View {
     @StateObject private var viewModel: StackViewModel
     @State private var showExportSuccess = false
+    @State private var selectedSupplement: Supplement?
+    @State private var showInactiveSupplements = false
     @Environment(\.container) private var container
     
     public init(container: DIContainer) {
@@ -13,50 +15,59 @@ public struct StackView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                if let stack = viewModel.filteredStack {
+                if let stack = viewModel.stack {
                     ScrollView {
                         VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
-                            // Stack section
-                            if !stack.minimal.isEmpty {
+                            // Active supplements
+                            if !stack.activeSupplements.isEmpty {
                                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
                                     Text("Your personalized stack")
                                         .font(Theme.Typography.titleM)
                                         .foregroundColor(Theme.Colors.textPrimary)
                                         .padding(.horizontal, Theme.Spacing.gutter)
                                     
-                                    ForEach(stack.minimal) { supplement in
-                                        SupplementCard(
-                                            supplement: supplement,
-                                            isExpanded: viewModel.expandedSupplementIds.contains(supplement.id)
-                                        ) {
-                                            viewModel.toggleSupplementExpanded(supplement.id)
+                                    ForEach(stack.activeSupplements) { supplement in
+                                        SupplementCard(supplement: supplement) {
+                                            selectedSupplement = supplement
                                         }
                                         .padding(.horizontal, Theme.Spacing.gutter)
                                     }
                                 }
                             }
                             
-                            // Optional Add-Ons section
-                            if !stack.addons.isEmpty {
+                            // Show/Hide inactive supplements button
+                            if !stack.inactiveSupplements.isEmpty {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        showInactiveSupplements.toggle()
+                                    }
+                                } label: {
+                                    HStack(spacing: Theme.Spacing.xs) {
+                                        Text(showInactiveSupplements ? "Hide inactive supplements" : "Show inactive supplements")
+                                            .font(Theme.Typography.caption)
+                                        Image(systemName: showInactiveSupplements ? "chevron.up" : "chevron.down")
+                                            .font(.system(size: 12))
+                                    }
+                                    .foregroundColor(Theme.Colors.textSecondary)
+                                }
+                                .padding(.horizontal, Theme.Spacing.gutter)
+                                .padding(.vertical, Theme.Spacing.sm)
+                            }
+                            
+                            // Inactive supplements section (when shown)
+                            if showInactiveSupplements && !stack.inactiveSupplements.isEmpty {
                                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                                    Text("Optional Add-Ons")
+                                    Text("Inactive Supplements")
                                         .font(Theme.Typography.titleM)
-                                        .foregroundColor(Theme.Colors.textPrimary)
-                                        .padding(.horizontal, Theme.Spacing.gutter)
-                                    
-                                    Text("Consider these for enhanced benefits")
-                                        .font(Theme.Typography.caption)
                                         .foregroundColor(Theme.Colors.textSecondary)
                                         .padding(.horizontal, Theme.Spacing.gutter)
                                     
-                                    ForEach(stack.addons) { supplement in
-                                        SupplementCard(
-                                            supplement: supplement,
-                                            isExpanded: viewModel.expandedSupplementIds.contains(supplement.id)
-                                        ) {
-                                            viewModel.toggleSupplementExpanded(supplement.id)
+                                    ForEach(stack.inactiveSupplements) { supplement in
+                                        SupplementCard(supplement: supplement) {
+                                            selectedSupplement = supplement
                                         }
                                         .padding(.horizontal, Theme.Spacing.gutter)
+                                        .opacity(0.7)
                                     }
                                 }
                             }
@@ -105,6 +116,18 @@ public struct StackView: View {
             .sheet(isPresented: $viewModel.showRemixSheet) {
                 RemixSheet(viewModel: viewModel)
             }
+            .sheet(item: $selectedSupplement) { supplement in
+                if let binding = viewModel.bindingForSupplement(supplement) {
+                    SupplementDetailSheet(
+                        supplement: supplement,
+                        stackId: viewModel.stack?.id,
+                        isActive: binding,
+                        onToggleActive: { newValue in
+                            await viewModel.toggleSupplementActive(supplementId: supplement.id, active: newValue)
+                        }
+                    )
+                }
+            }
         }
         .toast(
             isShowing: $showExportSuccess,
@@ -117,80 +140,46 @@ public struct StackView: View {
 // MARK: - SupplementCard
 struct SupplementCard: View {
     let supplement: Supplement
-    let isExpanded: Bool
     let onTap: () -> Void
     
     var body: some View {
         Card(
             title: supplement.name,
-            subtitle: supplement.purpose,
+            subtitle: supplement.purposeShort ?? supplement.rationale,
             tags: createTags(),
-            isExpanded: .constant(isExpanded)
+            isExpanded: nil,  // Don't use expand/collapse - we'll show details in modal
+            onTap: onTap  // Pass through our custom tap handler
         ) {
-            VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                // Dose and form
-                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    HStack {
-                        Image(systemName: "pills.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Theme.Colors.textSecondary)
-                        Text("Dose: \(supplement.doseRangeText)")
-                            .font(Theme.Typography.body)
-                            .foregroundColor(Theme.Colors.textPrimary)
-                    }
-                    
-                    if let formNote = supplement.formNote {
-                        HStack {
-                            Image(systemName: "info.circle")
-                                .font(.system(size: 14))
-                                .foregroundColor(Theme.Colors.textSecondary)
-                            Text(formNote)
-                                .font(Theme.Typography.caption)
-                                .foregroundColor(Theme.Colors.textSecondary)
-                        }
-                    }
-                }
-                
-                // Why this section
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    Text("Why this?")
-                        .font(Theme.Typography.subhead)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Theme.Colors.textPrimary)
-                    
-                    Text(supplement.rationale)
+            // Dose info
+            HStack(spacing: Theme.Spacing.md) {
+                HStack(spacing: Theme.Spacing.xs) {
+                    Image(systemName: "pills.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(Theme.Colors.textSecondary)
+                    Text(supplement.doseRangeText)
                         .font(Theme.Typography.caption)
                         .foregroundColor(Theme.Colors.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 
-                // Study references
-                if !supplement.citations.isEmpty {
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        Text("Study References")
-                            .font(Theme.Typography.caption)
-                            .fontWeight(.semibold)
-                            .foregroundColor(Theme.Colors.textPrimary)
-                        
-                        ForEach(supplement.citations, id: \.url) { citation in
-                            Link(destination: URL(string: citation.url)!) {
-                                HStack {
-                                    Text("• \(citation.title)")
-                                        .font(Theme.Typography.caption)
-                                        .foregroundColor(Theme.Colors.primary)
-                                        .multilineTextAlignment(.leading)
-                                    Spacer()
-                                    Image(systemName: "arrow.up.right.square")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(Theme.Colors.primary)
-                                }
-                            }
-                        }
-                    }
+                if let formNote = supplement.formNote {
+                    Text("• \(formNote)")
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Colors.textSecondary)
+                }
+                
+                Spacer()
+                
+                // Tap to view details hint
+                HStack(spacing: Theme.Spacing.xs) {
+                    Text("Tap for details")
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Colors.primary)
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 12))
+                        .foregroundColor(Theme.Colors.primary)
                 }
             }
         }
-        .onTapGesture(perform: onTap)
     }
     
     private func createTags() -> [CardTagData] {

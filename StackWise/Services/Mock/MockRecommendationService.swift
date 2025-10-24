@@ -48,28 +48,34 @@ public class MockRecommendationService: RecommendationService {
                 return Supplement(
                     id: supplement.id,
                     name: supplement.name,
-                    purpose: supplement.purpose,
+                    purposeShort: supplement.purposeShort,
+                    purposeLong: supplement.purposeLong,
+                    scientificFunction: supplement.scientificFunction,
                     doseRangeText: supplement.doseRangeText,
                     formNote: supplement.formNote,
                     timingTag: supplement.timingTag,
                     evidenceLevel: supplement.evidenceLevel,
                     flags: supplement.flags.union([.vegan]),
                     citations: supplement.citations,
-                    rationale: supplement.rationale
+                    rationale: supplement.rationale,
+                    active: supplement.active
                 )
             }
             addons = addons.map { supplement in
                 return Supplement(
                     id: supplement.id,
                     name: supplement.name,
-                    purpose: supplement.purpose,
+                    purposeShort: supplement.purposeShort,
+                    purposeLong: supplement.purposeLong,
+                    scientificFunction: supplement.scientificFunction,
                     doseRangeText: supplement.doseRangeText,
                     formNote: supplement.formNote,
                     timingTag: supplement.timingTag,
                     evidenceLevel: supplement.evidenceLevel,
                     flags: supplement.flags.union([.vegan]),
                     citations: supplement.citations,
-                    rationale: supplement.rationale
+                    rationale: supplement.rationale,
+                    active: supplement.active
                 )
             }
         }
@@ -121,7 +127,9 @@ public class MockRecommendationService: RecommendationService {
     private func createCreatine() -> Supplement {
         Supplement(
             name: "Creatine Monohydrate",
-            purpose: "Increase strength and power",
+            purposeShort: "Supports muscle strength, power output, and cognitive function",
+            purposeLong: "Creatine monohydrate is one of the most researched supplements for athletic performance. It enhances strength, increases muscle mass, improves high-intensity exercise performance, and may support cognitive function and brain health.",
+            scientificFunction: "Creatine increases phosphocreatine stores in muscles, enabling rapid ATP regeneration during high-intensity activities. This enhanced energy availability leads to improved strength, power output, and work capacity during repeated high-intensity efforts.",
             doseRangeText: "5g daily",
             formNote: "Powder recommended",
             timingTag: .morning,
@@ -136,14 +144,17 @@ public class MockRecommendationService: RecommendationService {
                     url: "https://pubmed.example.com/28615996/"
                 )
             ],
-            rationale: "Creatine is one of the most researched supplements with strong evidence for improving strength, power, and muscle mass. The 5g daily dose is well-established and safe for long-term use."
+            rationale: "Based on your goals to build muscle and increase strength, creatine is one of the most well-researched supplements for enhancing power output and supporting muscle growth.",
+            active: true
         )
     }
     
     private func createMagnesium() -> Supplement {
         Supplement(
             name: "Magnesium Glycinate",
-            purpose: "Improve sleep quality",
+            purposeShort: "Improves sleep quality and promotes relaxation",
+            purposeLong: "Magnesium glycinate is a highly bioavailable form of magnesium that supports sleep quality, muscle relaxation, and nervous system function. It's particularly effective for reducing nighttime muscle cramps and promoting deeper, more restful sleep.",
+            scientificFunction: "Magnesium acts as a natural NMDA receptor antagonist and GABA agonist, promoting neuronal relaxation. It also regulates melatonin production and reduces cortisol levels, facilitating the transition to sleep.",
             doseRangeText: "200-400mg before bed",
             formNote: "Glycinate form for better absorption",
             timingTag: .night,
@@ -158,14 +169,17 @@ public class MockRecommendationService: RecommendationService {
                     url: "https://pubmed.example.com/23853635/"
                 )
             ],
-            rationale: "Magnesium glycinate is well-absorbed and less likely to cause digestive issues. It supports muscle relaxation and may improve sleep quality when taken before bed."
+            rationale: "Given your goal to improve sleep quality, magnesium glycinate is highly bioavailable and helps with sleep onset and quality without morning grogginess.",
+            active: true
         )
     }
     
     private func createLTheanine() -> Supplement {
         Supplement(
             name: "L-Theanine",
-            purpose: "Reduce stress, improve focus",
+            purposeShort: "Reduces stress and improves focus without drowsiness",
+            purposeLong: "L-Theanine is an amino acid found in tea that promotes relaxation without causing drowsiness. It can improve focus, reduce stress, and enhance sleep quality when taken before bed.",
+            scientificFunction: "L-Theanine increases alpha brain waves associated with relaxation and alertness. It modulates GABA, dopamine, and serotonin levels while reducing cortisol, creating a state of calm focus.",
             doseRangeText: "100-200mg daily",
             formNote: nil,
             timingTag: .morning,
@@ -180,14 +194,17 @@ public class MockRecommendationService: RecommendationService {
                     url: "https://pubmed.example.com/16930802/"
                 )
             ],
-            rationale: "L-Theanine promotes relaxation without drowsiness and can improve focus when combined with caffeine. It's particularly helpful for managing stress and anxiety."
+            rationale: "L-Theanine promotes relaxation without drowsiness and can improve focus when combined with caffeine. It's particularly helpful for managing stress and anxiety.",
+            active: true
         )
     }
     
     private func createVitaminD() -> Supplement {
         Supplement(
             name: "Vitamin D3",
-            purpose: "Support immune function",
+            purposeShort: "Supports immune function and bone health",
+            purposeLong: "Vitamin D3 is essential for immune function, bone health, and mood regulation. Many people are deficient, especially those with limited sun exposure or living in northern climates.",
+            scientificFunction: "Vitamin D acts as a hormone in the body, regulating calcium absorption and bone mineralization. It also modulates immune cell function and has anti-inflammatory effects.",
             doseRangeText: "1000-2000 IU daily",
             formNote: "Take with fat for absorption",
             timingTag: .morning,
@@ -202,14 +219,17 @@ public class MockRecommendationService: RecommendationService {
                     url: "https://pubmed.example.com/21527855/"
                 )
             ],
-            rationale: "Vitamin D deficiency is common and linked to weakened immune function. Supplementation can help maintain optimal levels, especially with limited sun exposure."
+            rationale: "Vitamin D deficiency is common and linked to weakened immune function. Supplementation can help maintain optimal levels, especially with limited sun exposure.",
+            active: true
         )
     }
     
     private func createAshwagandha() -> Supplement {
         Supplement(
             name: "Ashwagandha",
-            purpose: "Reduce stress and fatigue",
+            purposeShort: "Reduces stress and supports energy levels",
+            purposeLong: "Ashwagandha is an ancient adaptogenic herb that helps the body manage stress, reduce anxiety, and improve energy levels. It may also support testosterone levels and muscle strength.",
+            scientificFunction: "Ashwagandha modulates the HPA axis, reducing cortisol levels and stress response. It also exhibits GABA-mimetic activity and may increase testosterone and DHEA-S levels in stressed individuals.",
             doseRangeText: "300-600mg daily",
             formNote: "KSM-66 extract",
             timingTag: .evening,
@@ -224,7 +244,8 @@ public class MockRecommendationService: RecommendationService {
                     url: "https://pubmed.example.com/23439798/"
                 )
             ],
-            rationale: "Ashwagandha is an adaptogen that may help the body manage stress and reduce cortisol levels. KSM-66 is a well-studied, standardized extract."
+            rationale: "Ashwagandha is an adaptogen that may help the body manage stress and reduce cortisol levels. KSM-66 is a well-studied, standardized extract.",
+            active: true
         )
     }
 }

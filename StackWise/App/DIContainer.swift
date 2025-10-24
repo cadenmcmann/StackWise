@@ -45,7 +45,7 @@ public class DIContainer: ObservableObject {
             self.recommendationService = RealRecommendationService()
             self.scheduleService = MockScheduleService() // Still mocked - not in API yet
             self.trackingService = RealTrackingService() // Now using real API!
-            self.chatService = MockChatService() // Still mocked - not in API yet
+            self.chatService = RealChatService() // Now using real API!
             self.exportService = MockExportService() // Still mocked - not in API yet
             self.goalsService = RealGoalsService()
             self.preferencesService = RealPreferencesService()

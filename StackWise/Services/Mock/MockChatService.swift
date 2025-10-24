@@ -3,18 +3,40 @@ import Foundation
 // MARK: - MockChatService
 public class MockChatService: ChatService {
     private var messageHistory: [Message] = []
+    private var sessions: [ChatSession] = []
+    private var sessionMessages: [String: [Message]] = [:]
+    private var currentSessionId: String?
     
     public init() {
-        // Add initial system message
-        messageHistory.append(Message(
+        // Create a default session
+        let defaultSession = ChatSession(
+            id: UUID().uuidString,
+            title: "General Questions",
+            createdAt: Date().addingTimeInterval(-86400),
+            updatedAt: Date()
+        )
+        sessions.append(defaultSession)
+        currentSessionId = defaultSession.id
+        
+        // Add initial system message to the default session
+        let systemMessage = Message(
             role: .system,
             text: "Hi! I'm here to help you optimize your supplement stack. Ask me anything about your regimen, dosing, timing, or potential adjustments."
-        ))
+        )
+        sessionMessages[defaultSession.id] = [systemMessage]
+        messageHistory = [systemMessage]
     }
     
     public func send(message: Message, context: ChatContext) async throws -> [Message] {
-        // Add user message to history
-        messageHistory.append(message)
+        guard let sessionId = currentSessionId else {
+            throw NetworkError.apiError(message: "No active session", statusCode: 400)
+        }
+        
+        // Get current session messages
+        var messages = sessionMessages[sessionId] ?? []
+        
+        // Add user message
+        messages.append(message)
         
         // Simulate processing delay
         try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
@@ -27,10 +49,89 @@ public class MockChatService: ChatService {
             text: responseText
         )
         
-        messageHistory.append(assistantMessage)
+        messages.append(assistantMessage)
+        
+        // Update session messages
+        sessionMessages[sessionId] = messages
+        
+        // Update session's updatedAt time
+        if let index = sessions.firstIndex(where: { $0.id == sessionId }) {
+            var updatedSession = sessions[index]
+            updatedSession = ChatSession(
+                id: updatedSession.id,
+                userId: updatedSession.userId,
+                title: updatedSession.title,
+                createdAt: updatedSession.createdAt,
+                updatedAt: Date()
+            )
+            sessions[index] = updatedSession
+        }
         
         // Return the conversation with the new messages
-        return messageHistory
+        return messages
+    }
+    
+    public func createSession(title: String?) async throws -> ChatSession {
+        // Simulate network delay
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        let session = ChatSession(
+            id: UUID().uuidString,
+            title: title,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+        
+        sessions.insert(session, at: 0)
+        
+        // Initialize with system message
+        let systemMessage = Message(
+            role: .system,
+            text: "Hi! I'm here to help you optimize your supplement stack. Ask me anything about your regimen, dosing, timing, or potential adjustments."
+        )
+        sessionMessages[session.id] = [systemMessage]
+        
+        return session
+    }
+    
+    public func fetchSessions(limit: Int, cursor: String?) async throws -> [ChatSession] {
+        // Simulate network delay
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        // Return mock sessions sorted by updatedAt
+        return sessions.sorted { $0.updatedAt > $1.updatedAt }
+    }
+    
+    public func fetchSessionMessages(sessionId: String, limit: Int, before: String?) async throws -> [Message] {
+        // Simulate network delay
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        return sessionMessages[sessionId] ?? []
+    }
+    
+    public func setCurrentSession(_ sessionId: String?) {
+        currentSessionId = sessionId
+    }
+    
+    public func getCurrentSessionId() -> String? {
+        return currentSessionId
+    }
+    
+    public func getCachedSessions() -> [ChatSession] {
+        return sessions
+    }
+    
+    public func getCachedMessages(for sessionId: String) -> [Message] {
+        return sessionMessages[sessionId] ?? []
+    }
+    
+    public func clearCache() {
+        // In mock, we'll keep the default session
+        if let defaultSession = sessions.first {
+            sessions = [defaultSession]
+            let systemMessage = sessionMessages[defaultSession.id]?.first { $0.role == .system }
+            sessionMessages = [defaultSession.id: systemMessage.map { [$0] } ?? []]
+        }
     }
     
     private func generateMockResponse(for text: String, context: ChatContext) -> String {

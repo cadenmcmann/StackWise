@@ -8,7 +8,6 @@ public class StackViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var showRemixSheet = false
     @Published var remixOptions = RemixOptions()
-    @Published var expandedSupplementIds: Set<String> = []
     
     private let container: DIContainer
     
@@ -62,19 +61,60 @@ public class StackViewModel: ObservableObject {
         }
     }
     
-    func toggleSupplementExpanded(_ supplementId: String) {
-        if expandedSupplementIds.contains(supplementId) {
-            expandedSupplementIds.remove(supplementId)
-        } else {
-            expandedSupplementIds.insert(supplementId)
-        }
-    }
-    
     func loadStack() async {
         isLoading = true
         await container.loadCurrentStack()
         stack = container.currentStack
         isLoading = false
+    }
+    
+    func bindingForSupplement(_ supplement: Supplement) -> Binding<Bool>? {
+        guard let stack = stack else { return nil }
+        
+        // Find the supplement in either minimal or addons
+        if let index = stack.minimal.firstIndex(where: { $0.id == supplement.id }) {
+            return Binding(
+                get: { self.stack?.minimal[index].active ?? false },
+                set: { _ in } // We'll handle the actual update in toggleSupplementActive
+            )
+        } else if let index = stack.addons.firstIndex(where: { $0.id == supplement.id }) {
+            return Binding(
+                get: { self.stack?.addons[index].active ?? false },
+                set: { _ in } // We'll handle the actual update in toggleSupplementActive
+            )
+        }
+        
+        return nil
+    }
+    
+    func toggleSupplementActive(supplementId: String, active: Bool) async {
+        // Optimistically update local state
+        stack?.toggleSupplementActive(supplementId: supplementId)
+        
+        // Update container's current stack
+        container.currentStack = stack
+        
+        // Trigger a UI update
+        objectWillChange.send()
+        
+        // Call API
+        do {
+            if let stackId = stack?.id,
+               let service = container.recommendationService as? RealRecommendationService {
+                try await service.toggleSupplementActive(
+                    stackId: stackId,
+                    supplementId: supplementId,
+                    active: active
+                )
+            }
+        } catch {
+            // Revert on error
+            stack?.toggleSupplementActive(supplementId: supplementId)
+            container.currentStack = stack
+            objectWillChange.send()
+            print("Failed to toggle supplement: \(error)")
+            // TODO: Show error toast
+        }
     }
     
     // MARK: - Computed Properties

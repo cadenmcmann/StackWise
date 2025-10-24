@@ -43,7 +43,9 @@ StackWise/
 │   │       ├── RealAuthService.swift
 │   │       ├── RealRecommendationService.swift
 │   │       ├── RealGoalsService.swift
-│   │       └── RealPreferencesService.swift
+│   │       ├── RealPreferencesService.swift
+│   │       ├── RealTrackingService.swift
+│   │       └── RealChatService.swift
 │   ├── Networking/
 │   │   ├── NetworkManager.swift     # API request handling
 │   │   └── APIModels.swift          # API request/response models
@@ -72,8 +74,9 @@ StackWise/
 │   │   │       ├── ReviewScreen.swift      # Summary
 │   │   │       └── GeneratingScreen.swift  # Loading
 │   │   ├── Stack/                  # Tab 1: Stack management
-│   │   │   ├── StackView.swift
-│   │   │   └── StackViewModel.swift
+│   │   │   ├── StackView.swift          # Main stack display with active/inactive filtering
+│   │   │   ├── StackViewModel.swift     # Stack state management
+│   │   │   └── SupplementDetailSheet.swift # Bottom sheet for supplement details
 │   │   ├── Schedule/               # Tab 2: Reminder schedule
 │   │   │   ├── ScheduleView.swift
 │   │   │   └── ScheduleViewModel.swift
@@ -81,8 +84,10 @@ StackWise/
 │   │   │   ├── TrackView.swift
 │   │   │   └── TrackViewModel.swift
 │   │   ├── Chat/                   # Tab 4: AI assistant
-│   │   │   ├── ChatView.swift
-│   │   │   └── ChatViewModel.swift
+│   │   │   ├── ChatView.swift           # Main entry point
+│   │   │   ├── ChatViewModel.swift      # Legacy view model
+│   │   │   ├── ChatSessionsView.swift   # Sessions list screen
+│   │   │   └── ChatConversationView.swift # Individual chat screen
 │   │   └── Profile/                # Tab 5: User profile
 │   │       ├── ProfileView.swift
 │   │       └── ProfileViewModel.swift
@@ -176,6 +181,7 @@ Centralized in `Theme.swift`:
 - **Reminder**: Supplement ID, time, enabled state
 - **TrackEntry**: Date, taken supplements, optional note
 - **Message**: Chat messages with role (user/assistant/system)
+- **ChatSession**: Session metadata (id, title, timestamps)
 
 #### Enums
 - **Goal**: 18 health goals (strength, sleep, focus, etc.)
@@ -209,10 +215,13 @@ Centralized in `Theme.swift`:
 - Sample notes for recent days
 - Calculates streaks
 
-#### MockChatService
-- Pattern-matches user input for common queries
-- Returns contextual responses about supplements
-- Simulates 1s response delay
+#### RealChatService (Active)
+- Full integration with backend Chat API
+- Session management (create, list, fetch)
+- Message sending and receiving with AI responses
+- Local caching for offline support
+- Pagination support for message history
+- Context includes user profile and stack
 
 ## UI/UX Patterns
 
@@ -270,10 +279,15 @@ make print-devices  # List available simulators
 - ✅ Accessibility support
 - ✅ Basic persistence (UserDefaults + API)
 - ✅ NetworkManager for API calls
-- ✅ Real services for Auth, Goals, Preferences, Stack
+- ✅ Real services for Auth, Goals, Preferences, Stack, Tracking, Chat
+- ✅ AI-powered chat with session management
+- ✅ Chat sessions list and conversation views
+- ✅ Message pagination and local caching
+- ✅ Enhanced Stack screen with supplement details modal
+- ✅ Active/inactive supplement filtering and toggling
+- ✅ Integration with PATCH /stack/{stackId}/supplements endpoint
 - ⚠️ Sign in with Apple UI present but not functional
-- ⚠️ Schedule, Tracking, Chat, Export still using mock services
-- ⚠️ No AI chat integration (templated responses)
+- ⚠️ Schedule and Export still using mock services
 
 ## Quick Start for New Developers
 
@@ -300,7 +314,7 @@ make print-devices  # List available simulators
 ## Integration Points (for Future Development)
 
 ### Backend API
-- **Base URL**: https://xuy07kjq0b.execute-api.us-east-1.amazonaws.com/
+- **Base URL**: https://7pcymt07l8.execute-api.us-east-1.amazonaws.com/
 - **Authentication**: JWT Bearer tokens
 - **Implemented Endpoints**:
   - POST /auth/signup - User registration

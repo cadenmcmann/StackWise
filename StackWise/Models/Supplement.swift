@@ -4,14 +4,17 @@ import Foundation
 public struct Supplement: Identifiable, Codable, Equatable {
     public let id: String
     public let name: String
-    public let purpose: String
+    public let purposeShort: String?  // 1 sentence overview
+    public let purposeLong: String?   // 3-5 sentence overview
+    public let scientificFunction: String?  // Scientific explanation
     public let doseRangeText: String
     public let formNote: String?
     public let timingTag: TimingTag?
     public let evidenceLevel: EvidenceLevel?
     public let flags: Set<SupplementFlag>
     public let citations: [Citation]
-    public let rationale: String
+    public let rationale: String  // Personalized explanation
+    public var active: Bool  // Whether supplement is active in stack
     // New API fields
     public let schedule: SupplementSchedule?
     public let tags: [String]
@@ -46,7 +49,9 @@ public struct Supplement: Identifiable, Codable, Equatable {
     public init(
         id: String = UUID().uuidString,
         name: String,
-        purpose: String,
+        purposeShort: String? = nil,
+        purposeLong: String? = nil,
+        scientificFunction: String? = nil,
         doseRangeText: String,
         formNote: String? = nil,
         timingTag: TimingTag? = nil,
@@ -54,12 +59,15 @@ public struct Supplement: Identifiable, Codable, Equatable {
         flags: Set<SupplementFlag> = [],
         citations: [Citation] = [],
         rationale: String = "",
+        active: Bool = true,
         schedule: SupplementSchedule? = nil,
         tags: [String] = []
     ) {
         self.id = id
         self.name = name
-        self.purpose = purpose
+        self.purposeShort = purposeShort
+        self.purposeLong = purposeLong
+        self.scientificFunction = scientificFunction
         self.doseRangeText = doseRangeText
         self.formNote = formNote
         self.timingTag = timingTag
@@ -67,6 +75,7 @@ public struct Supplement: Identifiable, Codable, Equatable {
         self.flags = flags
         self.citations = citations
         self.rationale = rationale
+        self.active = active
         self.schedule = schedule
         self.tags = tags
     }
@@ -102,16 +111,37 @@ public struct Citation: Codable, Equatable {
 
 // MARK: - Stack
 public struct Stack: Codable {
-    public let minimal: [Supplement]
-    public let addons: [Supplement]
+    public var minimal: [Supplement]
+    public var addons: [Supplement]
+    public let id: String?
     
-    public init(minimal: [Supplement] = [], addons: [Supplement] = []) {
+    public init(id: String? = nil, minimal: [Supplement] = [], addons: [Supplement] = []) {
+        self.id = id
         self.minimal = minimal
         self.addons = addons
     }
     
     public var allSupplements: [Supplement] {
         minimal + addons
+    }
+    
+    public var activeSupplements: [Supplement] {
+        allSupplements.filter { $0.active }
+    }
+    
+    public var inactiveSupplements: [Supplement] {
+        allSupplements.filter { !$0.active }
+    }
+    
+    public mutating func toggleSupplementActive(supplementId: String) {
+        // Toggle in minimal array
+        if let index = minimal.firstIndex(where: { $0.id == supplementId }) {
+            minimal[index].active.toggle()
+        }
+        // Toggle in addons array
+        else if let index = addons.firstIndex(where: { $0.id == supplementId }) {
+            addons[index].active.toggle()
+        }
     }
 }
 

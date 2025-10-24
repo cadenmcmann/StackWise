@@ -1,128 +1,16 @@
 import SwiftUI
 
 // MARK: - ChatView
+// This is now the main entry point that shows the sessions list
 public struct ChatView: View {
-    @StateObject private var viewModel: ChatViewModel
-    @FocusState private var isInputFocused: Bool
     @Environment(\.container) private var container
     
     public init(container: DIContainer) {
-        _viewModel = StateObject(wrappedValue: ChatViewModel(container: container))
+        // No longer need viewModel here as ChatSessionsView handles it
     }
     
     public var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Guardrail banner
-                Banner(
-                    type: .info,
-                    title: "Educational Only",
-                    message: "This is not medical advice. Consult healthcare professionals for medical decisions."
-                )
-                .padding(Theme.Spacing.gutter)
-                
-                // Messages list
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: Theme.Spacing.md) {
-                            ForEach(viewModel.messages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
-                            }
-                            
-                            if viewModel.isLoading {
-                                LoadingBubble()
-                            }
-                        }
-                        .padding(Theme.Spacing.gutter)
-                    }
-                    .onChange(of: viewModel.messages.count) {
-                        withAnimation {
-                            proxy.scrollTo(viewModel.messages.last?.id, anchor: .bottom)
-                        }
-                    }
-                }
-                
-                Divider()
-                
-                // Input area
-                VStack(spacing: Theme.Spacing.md) {
-                    // Suggestion chips
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            ForEach(viewModel.suggestions, id: \.self) { suggestion in
-                                SuggestionChip(text: suggestion) {
-                                    viewModel.sendSuggestion(suggestion)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, Theme.Spacing.gutter)
-                    }
-                    .padding(.vertical, Theme.Spacing.sm)
-                    
-                    // Text input and send button
-                    HStack(alignment: .bottom, spacing: Theme.Spacing.sm) {
-                        TextField(
-                            "Ask about your supplements...",
-                            text: $viewModel.inputText,
-                            axis: .vertical
-                        )
-                        .font(Theme.Typography.body)
-                        .padding(Theme.Spacing.md)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radii.xl)
-                                .fill(Theme.Colors.surfaceAlt)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Radii.xl)
-                                .stroke(
-                                    isInputFocused ? Theme.Colors.primary : Theme.Colors.border,
-                                    lineWidth: isInputFocused ? 2 : 1
-                                )
-                        )
-                        .focused($isInputFocused)
-                        .lineLimit(1...4)
-                        .onSubmit {
-                            Task {
-                                await viewModel.sendMessage()
-                            }
-                        }
-                        
-                        Button {
-                            Task {
-                                await viewModel.sendMessage()
-                            }
-                        } label: {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 32))
-                                .foregroundColor(
-                                    viewModel.inputText.isEmpty ? Theme.Colors.disabled : Theme.Colors.primary
-                                )
-                        }
-                        .disabled(viewModel.inputText.isEmpty || viewModel.isLoading)
-                    }
-                    .padding(.horizontal, Theme.Spacing.gutter)
-                    .padding(.bottom, Theme.Spacing.md)
-                }
-                .background(Theme.Colors.surface)
-            }
-            .navigationTitle("Chat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        viewModel.clearChat()
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                }
-            }
-        }
-        .alert("Error", isPresented: $viewModel.showError) {
-            Button("OK", role: .cancel) { }
-        } message: {
-            Text(viewModel.errorMessage)
-        }
+        ChatSessionsView(container: container)
     }
 }
 
@@ -241,30 +129,5 @@ struct LoadingBubble: View {
                 }
             }
         }
-    }
-}
-
-// MARK: - SuggestionChip
-struct SuggestionChip: View {
-    let text: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Text(text)
-                .font(Theme.Typography.caption)
-                .foregroundColor(Theme.Colors.primary)
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.sm)
-                .background(
-                    RoundedRectangle(cornerRadius: Theme.Radii.xl)
-                        .fill(Theme.Colors.primary.opacity(0.1))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radii.xl)
-                        .stroke(Theme.Colors.primary.opacity(0.3), lineWidth: 1)
-                )
-        }
-        .buttonStyle(PlainButtonStyle())
     }
 }

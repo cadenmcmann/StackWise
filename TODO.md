@@ -53,15 +53,24 @@ This document tracks all remaining work to transform the current UI scaffold int
   - [ ] Add real PubMed citation fetching
 
 ### 4. AI Chat Assistant
-- [ ] **Replace MockChatService**
-  - [ ] Integrate conversational AI (GPT-4/Claude/Custom)
-  - [ ] Implement streaming responses
-  - [ ] Add conversation context management
-  - [ ] Create supplement-specific knowledge base
-  - [ ] Implement safety guardrails for medical advice
-  - [ ] Add conversation history persistence
-  - [ ] Build suggested queries based on user stack
-  - [ ] Add rate limiting and token management
+- [x] **Replace MockChatService** (December 2024)
+  - [x] Integrate with backend Chat API endpoints
+  - [x] Implement RealChatService with session management
+  - [x] Add conversation context management (user profile & stack)
+  - [x] Build chat sessions list screen
+  - [x] Implement chat conversation view with pagination
+  - [x] Add conversation history persistence (local caching)
+  - [x] Build suggested queries UI based on user stack
+  - [x] Handle message sending and AI responses
+- [ ] **Advanced Chat Features**
+  - [ ] Implement streaming responses (when API supports it)
+  - [ ] Add session renaming functionality
+  - [ ] Implement session deletion
+  - [ ] Add message search within sessions
+  - [ ] Create supplement-specific knowledge base enhancements
+  - [ ] Add export chat history feature
+  - [ ] Implement typing indicators
+  - [ ] Add voice input support
 
 ### 5. Data Persistence
 - [ ] **Local Storage**
@@ -181,6 +190,25 @@ This document tracks all remaining work to transform the current UI scaffold int
   - [x] Fetch current stack endpoint (/stack/current)
   - [x] Onboarding flow saves to API and generates real stack
 
+- [x] **Chat Feature Implementation**
+  - [x] RealChatService implementation with full API integration
+  - [x] Chat sessions management (/chat/session, /chat/sessions)
+  - [x] Message sending and receiving (/chat/session/{id}/message)
+  - [x] Session history and pagination support
+  - [x] ChatSessionsView for listing all conversations
+  - [x] ChatConversationView for individual chats
+  - [x] Local caching for offline support
+  - [x] Contextual suggestions based on user's stack
+
+- [x] **Stack Screen Enhancement** (October 2025)
+  - [x] Updated Supplement model with purposeShort, purposeLong, scientificFunction
+  - [x] Created SupplementDetailSheet with bottom sheet modal
+  - [x] Implemented PATCH /stack/{stackId}/supplements integration
+  - [x] Added active/inactive supplement filtering
+  - [x] Optimistic UI updates for supplement toggling
+  - [x] Show/hide inactive supplements feature
+  - [x] Stack ID tracking for API integration
+
 - [x] **App Infrastructure Updates**
   - [x] DIContainer updated to use real services
   - [x] Toggle between mock and real services
@@ -293,25 +321,34 @@ This document tracks all remaining work to transform the current UI scaffold int
 
 ## 🎯 Current Implementation Status
 
-### What's Done (Mocked)
+### What's Done
 - ✅ Complete UI/UX scaffold
 - ✅ All screens and navigation
 - ✅ Design system components
-- ✅ Mock data services
 - ✅ Basic state management
 - ✅ Accessibility support
+- ✅ Real backend API integration for core features
+- ✅ Authentication (email/password)
+- ✅ User preferences and goals
+- ✅ Stack generation via API
+- ✅ AI-powered chat assistant with session management
+- ✅ Local caching for offline support
+
+### What's Partially Complete
+- ⚠️ Sign in with Apple (UI present, not functional)
+- ⚠️ Schedule service (still mocked)
+- ⚠️ Export service (still mocked)
+- ⚠️ Data persistence (using UserDefaults, needs Core Data)
 
 ### What's Completely Missing
-- ❌ Real backend/API
-- ❌ Authentication
-- ❌ AI/LLM integration
-- ❌ Real supplement database
-- ❌ Data persistence
+- ❌ Real supplement database with full details
 - ❌ Push notifications
-- ❌ Analytics
+- ❌ Analytics tracking
 - ❌ In-app purchases
 - ❌ Health app integration
 - ❌ Real PDF/calendar export
+- ❌ Biometric authentication
+- ❌ Advanced LLM features (streaming, etc.)
 
 ## 🚀 Recommended Development Order
 

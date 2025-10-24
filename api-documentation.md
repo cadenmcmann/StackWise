@@ -66,6 +66,428 @@ The API uses strongly-typed interfaces throughout. Key types for front-end devel
 
 ---
 
+## Chat Endpoints
+
+The chat feature enables multi-session conversations with an AI assistant that knows about your supplements, preferences, and goals.
+
+### Typical Chat Flow:
+1. **Create a session**: `POST /chat/session` → Get `session_id`
+2. **Send messages**: `POST /chat/session/{sessionId}/message` → Get AI response
+3. **List sessions**: `GET /chat/sessions` → See all your conversations
+4. **View history**: `GET /chat/session/{sessionId}` → See messages in a session
+
+---
+
+### POST /chat/session
+Create a new chat session for the authenticated user.
+
+**Purpose**: Initialize a new conversation thread. Each session is independent with its own message history.
+
+**Authentication**: Required (JWT Bearer token)
+
+**Request**:
+```http
+POST {{baseUrl}}chat/session
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "title": "Questions about creatine timing"
+}
+```
+
+**Request Body** (all fields optional):
+- `title`: Session title (max 255 characters). If omitted, session has no title.
+
+**Response** (201 Created):
+```json
+{
+  "session_id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Questions about creatine timing",
+  "created_at": "2024-10-20T10:30:00.000Z"
+}
+```
+
+**Response Fields**:
+- `session_id`: UUID to use for sending messages to this session
+- `title`: The session title (null if not provided)
+- `created_at`: ISO 8601 timestamp
+
+**Front-End Usage**:
+- Store the `session_id` to send messages to this conversation
+- Create a new session for each new conversation topic
+- Sessions persist forever (until explicitly deleted, if that feature is added)
+
+**Error Responses**:
+- 401: Invalid or missing JWT token
+- 400: Title exceeds 255 characters
+- 500: Database error
+
+### GET /chat/sessions
+List all chat sessions for the authenticated user, sorted by most recently active.
+
+**Purpose**: Display user's conversation history. Use this to populate a chat list or sidebar.
+
+**Authentication**: Required (JWT Bearer token)
+
+**Request**:
+```http
+GET {{baseUrl}}chat/sessions?limit=20
+Authorization: Bearer {{jwt}}
+```
+
+**Query Parameters**:
+- `limit` (optional): Number of sessions to return (default: 20, max: 100)
+- `cursor` (optional): Pagination cursor (use `next_cursor` from previous response)
+
+**Response** (200 OK):
+```json
+{
+  "sessions": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "123e4567-e89b-12d3-a456-426614174000",
+      "title": "Creatine questions",
+      "created_at": "2024-10-20T10:30:00.000Z",
+      "updated_at": "2024-10-20T15:45:00.000Z"
+    },
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "user_id": "123e4567-e89b-12d3-a456-426614174000",
+      "title": "Sleep supplement timing",
+      "created_at": "2024-10-19T14:00:00.000Z",
+      "updated_at": "2024-10-19T14:30:00.000Z"
+    }
+  ],
+  "next_cursor": "2024-10-19T14:30:00.000Z"
+}
+```
+
+**Response Fields**:
+- `sessions`: Array of chat sessions
+  - `id`: Session UUID
+  - `user_id`: Owner's user ID
+  - `title`: Session title (can be null)
+  - `created_at`: When session was created
+  - `updated_at`: Last message timestamp (used for sorting)
+- `next_cursor`: Present only if more sessions exist (use for pagination)
+
+**Sorting & Pagination**:
+- Sessions are sorted by `updated_at DESC` (most recent first)
+- When a new message is sent to a session, its `updated_at` is updated
+- This naturally bubbles active conversations to the top
+- To load more: Call again with `cursor={next_cursor}`
+
+**Front-End Usage**:
+```typescript
+// Initial load
+GET /chat/sessions?limit=20
+// Returns sessions and next_cursor
+
+// Load more (if next_cursor exists)
+GET /chat/sessions?limit=20&cursor=2024-10-19T14:30:00.000Z
+```
+
+**Error Responses**:
+- 401: Invalid or missing JWT token
+- 500: Database error
+
+### GET /chat/session/{sessionId}
+Retrieve messages from a specific chat session.
+
+**Purpose**: Load conversation history to display in the chat UI. Call this when user opens a conversation.
+
+**Authentication**: Required (JWT Bearer token - must be session owner)
+
+**Request**:
+```http
+GET {{baseUrl}}chat/session/550e8400-e29b-41d4-a716-446655440000?limit=50
+Authorization: Bearer {{jwt}}
+```
+
+**Path Parameters**:
+- `sessionId`: UUID of the chat session
+
+**Query Parameters**:
+- `limit` (optional): Number of messages to return (default: 50, max: 100)
+- `before` (optional): ISO 8601 timestamp - fetch messages before this time (for loading older messages)
+
+**Response** (200 OK):
+```json
+{
+  "session": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "user_id": "123e4567-e89b-12d3-a456-426614174000",
+    "title": "Supplement timing questions",
+    "created_at": "2024-10-20T10:30:00.000Z",
+    "updated_at": "2024-10-20T15:45:00.000Z"
+  },
+  "messages": [
+    {
+      "id": "msg-001",
+      "session_id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "123e4567-e89b-12d3-a456-426614174000",
+      "role": "user",
+      "content": "When should I take magnesium?",
+      "created_at": "2024-10-20T10:31:00.000Z"
+    },
+    {
+      "id": "msg-002",
+      "session_id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "123e4567-e89b-12d3-a456-426614174000",
+      "role": "assistant",
+      "content": "Magnesium glycinate is best taken in the evening, about 30-60 minutes before bed. This timing helps with sleep quality and allows for optimal absorption.",
+      "created_at": "2024-10-20T10:31:05.000Z"
+    },
+    {
+      "id": "msg-003",
+      "session_id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "123e4567-e89b-12d3-a456-426614174000",
+      "role": "user",
+      "content": "Can I take it with food?",
+      "created_at": "2024-10-20T10:32:00.000Z"
+    },
+    {
+      "id": "msg-004",
+      "session_id": "550e8400-e29b-41d4-a716-446655440000",
+      "user_id": "123e4567-e89b-12d3-a456-426614174000",
+      "role": "assistant",
+      "content": "Yes, taking magnesium with a light snack can help reduce any potential stomach upset. It doesn't significantly affect absorption.",
+      "created_at": "2024-10-20T10:32:05.000Z"
+    }
+  ],
+  "has_more": false
+}
+```
+
+**Response Fields**:
+- `session`: Complete session metadata
+- `messages`: Array of messages in chronological order (oldest first)
+  - `id`: Message UUID
+  - `session_id`: Parent session UUID
+  - `user_id`: Always matches the session owner
+  - `role`: "user", "assistant", or "system"
+  - `content`: Message text
+  - `created_at`: ISO 8601 timestamp
+- `has_more`: Boolean indicating if more messages exist before the oldest returned
+
+**Message Ordering**:
+- Messages are returned in **chronological order** (oldest first)
+- This is ready to display in a chat UI from top to bottom
+- Newest messages appear at the end of the array
+
+**Pagination (Loading Older Messages)**:
+```typescript
+// Initial load (most recent 50 messages)
+GET /chat/session/{sessionId}?limit=50
+// Returns has_more: true
+
+// Load older messages
+GET /chat/session/{sessionId}?limit=50&before=2024-10-20T10:31:00.000Z
+// Use the created_at of the oldest message you have
+```
+
+**Front-End Usage**:
+- Call this when user selects a session from the list
+- Display messages in chronological order
+- If `has_more: true`, show "Load older messages" button
+- Use the oldest message's `created_at` as the `before` cursor
+
+**Ownership Validation**:
+- The endpoint automatically verifies the session belongs to the authenticated user
+- Returns 404 if session doesn't exist or belongs to another user
+
+**Error Responses**:
+- 404: Session not found or doesn't belong to user
+- 400: Invalid session ID format (must be valid UUID)
+- 401: Invalid or missing JWT token
+- 500: Database error
+
+### POST /chat/session/{sessionId}/message
+Send a message to a chat session and receive an AI-generated response.
+
+**Purpose**: Enable conversation with an AI assistant that has context about the user's supplements, preferences, and goals.
+
+**Authentication**: Required (JWT Bearer token)
+
+**Path Parameters**:
+- `sessionId`: UUID of the chat session (must belong to the authenticated user)
+
+**Request Body**:
+```json
+{
+  "message": "Can I take creatine with coffee?"
+}
+```
+
+**Request Field Validation**:
+- `message`: Required, 1-4000 characters
+- Must be non-empty after trimming whitespace
+
+**Response** (200 OK):
+```json
+{
+  "message_id": "7e3bd994-fd85-4e2f-aed1-4bcf3741105a",
+  "content": "Yes, creatine can be taken with coffee. In fact, some studies suggest that caffeine may enhance creatine's performance benefits. However, it's best to stay well-hydrated when combining the two.",
+  "role": "assistant",
+  "created_at": "2025-10-21T22:02:45.664Z"
+}
+```
+
+**Response Fields**:
+- `message_id`: UUID of the saved assistant message
+- `content`: The AI's response text
+- `role`: Always "assistant"
+- `created_at`: Timestamp when the message was created
+
+**How It Works**:
+1. Your message is saved to the database immediately
+2. The AI generates a response using GPT-4o-mini
+3. Context is automatically included:
+   - User's goals from preferences
+   - Age, sex, dietary preferences, stimulant tolerance
+   - Active supplement stack (names and doses)
+   - Last 6 messages from this conversation
+4. The assistant's response is saved to the database
+5. The session's `updated_at` timestamp is updated
+6. The complete response is returned
+
+**AI Context Example**:
+The AI sees context like this:
+```
+User Profile:
+- Goals: Build Muscle, Improve Sleep Quality
+- Age: 28
+- Sex: male
+- Dietary: gluten_free
+- Stimulant tolerance: moderate
+
+Active Stack:
+- Creatine Monohydrate: 5g
+- Magnesium Glycinate: 400mg
+- L-Theanine: 200mg
+```
+
+**Error Responses**:
+- 404: Session not found or doesn't belong to user
+- 400: Message is empty or exceeds 4000 characters
+- 401: Invalid or missing JWT token
+- 500: OpenAI API error or database error
+
+**Important Notes for Front-End**:
+- The endpoint saves BOTH the user's message AND the assistant's response
+- After calling this endpoint, the session will contain 2 new messages (user + assistant)
+- To display the full conversation, call `GET /chat/session/{sessionId}` after sending
+- Or append the returned message directly to your local conversation state
+
+---
+
+## Complete Chat Implementation Example
+
+Here's a complete workflow for implementing the chat feature in your iOS app:
+
+### 1. Display Chat List (Sessions Screen)
+```swift
+// Fetch user's chat sessions
+GET /chat/sessions?limit=20
+
+// Display list showing:
+// - session.title (or "New Chat" if null)
+// - session.updated_at (format as "2 hours ago", "Yesterday", etc.)
+// - Sorted by updated_at DESC (most recent at top)
+
+// When user taps a session → Navigate to chat screen with session_id
+// When user taps "New Chat" → Call POST /chat/session first
+```
+
+### 2. Open a Chat Session (Chat Screen)
+```swift
+// When opening session:
+GET /chat/session/{sessionId}?limit=50
+
+// This returns:
+// - session metadata (title, timestamps)
+// - messages array (chronological order)
+// - has_more flag
+
+// Display:
+// - session.title in navigation bar
+// - messages in chat bubbles (user messages on right, assistant on left)
+// - If has_more==true, show "Load Earlier Messages" button at top
+```
+
+### 3. Send a Message
+```swift
+// When user types and sends:
+POST /chat/session/{sessionId}/message
+{
+  "message": "User's typed message here"
+}
+
+// Returns assistant's response immediately:
+{
+  "message_id": "uuid",
+  "content": "Assistant's response",
+  "role": "assistant",
+  "created_at": "2024-10-20T..."
+}
+
+// Update UI:
+// 1. Add user's message bubble (use local text, current timestamp)
+// 2. Show loading indicator for assistant
+// 3. When response arrives, add assistant message bubble
+// 4. No need to reload entire conversation - just append these 2 messages
+```
+
+### 4. Load Older Messages (Pagination)
+```swift
+// When user scrolls to top and taps "Load Earlier":
+GET /chat/session/{sessionId}?limit=50&before={oldest_message_created_at}
+
+// Prepend returned messages to your messages array
+// Update has_more flag
+```
+
+### 5. Session Management
+```swift
+// Creating new session:
+POST /chat/session { "title": "Supplement questions" }
+// Returns session_id → Navigate to that session
+
+// Switching sessions:
+// Just change active session_id and load messages
+// No need to close/cleanup previous session
+```
+
+### Key Implementation Tips:
+
+**Local State Management**:
+- Keep current `session_id` in state
+- Keep `messages` array in state
+- When sending message:
+  1. Optimistically add user message to UI
+  2. Show loading indicator
+  3. When response comes, add assistant message
+  4. Both are already saved server-side
+
+**Session List Updates**:
+- After sending a message, the session's `updated_at` changes
+- You can either:
+  - Refetch the sessions list to show updated order
+  - Or locally update that session's timestamp
+
+**Error Handling**:
+- If send message fails, show retry button
+- User message was still saved (check logs)
+- Can safely retry the same message
+
+**Offline Support**:
+- Queue outgoing messages locally
+- Send when connection restored
+- Session state persists server-side
+
+---
+
 ## Database Schemas
 
 Below are the key tables and columns used by the API. Types are PostgreSQL.
@@ -94,8 +516,10 @@ Below are the key tables and columns used by the API. Types are PostgreSQL.
 
 ### supplements
 - `id` UUID PRIMARY KEY
-- `name` TEXT NOT NULL
-- `purpose` TEXT NULLABLE
+- `name` TEXT NOT NULL UNIQUE
+- `purpose_short` TEXT NULLABLE (1 sentence overview)
+- `purpose_long` TEXT NULLABLE (3-5 sentence overview)
+- `scientific_function` TEXT NULLABLE (how the supplement works scientifically)
 - `timing_tags` TEXT[] NOT NULL DEFAULT '{}' (valid: 'morning', 'afternoon', 'evening', 'night')
 - `dietary_flags` TEXT[] NOT NULL DEFAULT '{}'
 - `stimulant_free` BOOLEAN NOT NULL DEFAULT true
@@ -116,13 +540,12 @@ Below are the key tables and columns used by the API. Types are PostgreSQL.
   "supplement_id": "uuid",
   "name": "string",
   "dose": "string",
-  "purpose": "string",
   "schedule": {
     "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     "times": ["morning", "afternoon", "evening", "night"]
   },
   "tags": ["Goal names from goals table"],
-  "rationale": "string",
+  "rationale": "1-2 sentence personalized explanation (e.g., 'Based on your goal to build muscle, creatine is excellent for strength gains.')",
   "active": true
 }
 ```
@@ -147,6 +570,23 @@ Below are the key tables and columns used by the API. Types are PostgreSQL.
   "time": "morning | afternoon | evening | night"
 }
 ```
+
+### chat_sessions
+- `id` UUID PRIMARY KEY DEFAULT gen_random_uuid()
+- `user_id` UUID NOT NULL REFERENCES users(id)
+- `title` TEXT NULLABLE
+- `created_at` TIMESTAMP NOT NULL DEFAULT now()
+- `updated_at` TIMESTAMP NOT NULL DEFAULT now()
+- Indexes: user_id, updated_at DESC
+
+### chat_messages
+- `id` UUID PRIMARY KEY DEFAULT gen_random_uuid()
+- `session_id` UUID NOT NULL REFERENCES chat_sessions(id)
+- `user_id` UUID NOT NULL REFERENCES users(id)
+- `role` TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system'))
+- `content` TEXT NOT NULL
+- `created_at` TIMESTAMP NOT NULL DEFAULT now()
+- Indexes: session_id, user_id, created_at, (session_id, created_at DESC)
 
 ### schema_migrations (internal)
 - `id` SERIAL PRIMARY KEY
@@ -183,7 +623,7 @@ Content-Type: application/json
 Response (201)
 ```json
 {
-  "token": "<jwt_token_here>",
+  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
@@ -219,7 +659,7 @@ Content-Type: application/json
 Response (200)
 ```json
 {
-  "token": "<jwt_token_here>",
+  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
@@ -255,7 +695,7 @@ Content-Type: application/json
 Response (200)
 ```json
 {
-  "token": "<jwt_token_here>",
+  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "optional@domain.com",
@@ -410,7 +850,7 @@ Response (200)
 Requires Authorization header.
 
 #### POST /stack/generate
-Generates and stores a supplement stack for the current user based on their goals and preferences. Uses OpenAI GPT-4-turbo to intelligently select supplements and create personalized dosing schedules.
+Generates and stores a supplement stack for the current user based on their goals and preferences. Uses OpenAI GPT-4o-mini to intelligently select supplements and create personalized dosing schedules.
 
 **Important Behavior:**
 - Automatically deactivates any currently active stacks (sets `active=false`, `active_end=today`)
@@ -434,26 +874,24 @@ Response (201)
         "supplement_id": "550e8400-e29b-41d4-a716-446655440100",
         "name": "Creatine Monohydrate",
         "dose": "5g",
-        "purpose": "Supports muscle growth and strength gains",
         "schedule": {
           "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
           "times": ["morning"]
         },
         "tags": ["Build Muscle", "Increase Strength"],
-        "rationale": "Creatine is one of the most well-researched supplements for muscle building and strength enhancement.",
+        "rationale": "Based on your goals to build muscle and increase strength, creatine is one of the most well-researched supplements for enhancing power output and supporting muscle growth.",
         "active": true
       },
       {
         "supplement_id": "550e8400-e29b-41d4-a716-446655440101",
         "name": "Magnesium Glycinate",
         "dose": "400mg",
-        "purpose": "Improves sleep quality and promotes relaxation",
         "schedule": {
           "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
           "times": ["evening"]
         },
         "tags": ["Improve Sleep Quality"],
-        "rationale": "Magnesium glycinate is highly bioavailable and helps with sleep onset and quality.",
+        "rationale": "Given your goal to improve sleep quality, magnesium glycinate is highly bioavailable and helps with sleep onset and quality without morning grogginess.",
         "active": true
       }
     ],
@@ -471,12 +909,11 @@ Response (201)
   - `supplement_id`: UUID of the supplement from the supplements table
   - `name`: Supplement name
   - `dose`: Dosage recommendation (e.g., "5g", "400mg")
-  - `purpose`: Why this supplement is included
   - `schedule`: When to take it
     - `daysOfWeek`: Array of day abbreviations (Mon-Sun)
     - `times`: Array of TimeOfDay values ("morning", "afternoon", "evening", "night")
-  - `tags`: Goal names this supplement addresses
-  - `rationale`: AI-generated explanation for inclusion
+  - `tags`: Goal names this supplement addresses (from user's selected goals)
+  - `rationale`: Personalized 1-2 sentence explanation written directly to the user (e.g., "Based on your goal to build muscle, creatine is excellent for strength gains.")
   - `active`: Whether this supplement is currently active in the user's routine
 - `active`: Whether this stack is currently active (automatically set to `true` on creation)
 - `active_start`: The date when this stack became active
@@ -507,13 +944,12 @@ Response (200)
         "supplement_id": "550e8400-e29b-41d4-a716-446655440100",
         "name": "Creatine Monohydrate",
         "dose": "5g",
-        "purpose": "Supports muscle growth and strength gains",
         "schedule": {
           "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
           "times": ["morning"]
         },
         "tags": ["Build Muscle", "Increase Strength"],
-        "rationale": "Creatine is one of the most well-researched supplements for muscle building and strength enhancement.",
+        "rationale": "Based on your goals to build muscle and increase strength, creatine is one of the most well-researched supplements for enhancing power output and supporting muscle growth.",
         "active": true
       }
     ],
@@ -530,6 +966,79 @@ Response (200)
 Errors
 - 401 if token missing/invalid
 - 404 if no stack exists for the user
+
+#### PATCH /stack/{stackId}/supplements
+Toggle the active status of one or more supplements within a stack (batch operation).
+
+**Purpose**: Allow users to mark supplements as active/inactive without modifying the entire stack. Inactive supplements won't show in daily intake tracking. Supports batch updates for efficiency.
+
+**Authentication**: Required (JWT Bearer token - must be stack owner)
+
+**Path Parameters**:
+- `stackId`: UUID of the stack
+
+**Request**:
+```http
+PATCH {{baseUrl}}stack/550e8400-e29b-41d4-a716-446655440020/supplements
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "updates": [
+    {
+      "supplement_id": "550e8400-e29b-41d4-a716-446655440100",
+      "active": false
+    },
+    {
+      "supplement_id": "550e8400-e29b-41d4-a716-446655440101",
+      "active": true
+    }
+  ]
+}
+```
+
+**Request Body**:
+- `updates`: Array of supplement status updates, each with:
+  - `supplement_id`: UUID of the supplement to update
+  - `active`: Boolean - `true` to activate, `false` to deactivate
+
+**Response** (200 OK):
+```json
+{
+  "message": "Supplement statuses updated",
+  "updated_count": 2,
+  "updates": [
+    {
+      "supplement_id": "550e8400-e29b-41d4-a716-446655440100",
+      "active": false
+    },
+    {
+      "supplement_id": "550e8400-e29b-41d4-a716-446655440101",
+      "active": true
+    }
+  ]
+}
+```
+
+**Use Cases**:
+- User doesn't want to take specific supplements → Set multiple to `active: false` at once
+- User wants to pause entire stack → Set all to `active: false` in one request
+- User wants to customize their routine → Mix of true/false for different supplements
+- Efficient bulk operations → Update multiple supplements with single API call
+
+**Important Notes**:
+- All updates are processed atomically (all succeed or all fail)
+- Supplements remain in the stack (not deleted)
+- Inactive supplements are excluded from daily intake schedules
+- Can toggle individual or multiple supplements
+- Does not affect other supplements not in the updates array
+
+Errors
+- 400 if stackId or updates array is missing/empty
+- 400 if any update is missing supplement_id or active field
+- 401 if token missing/invalid
+- 404 if stack not found or doesn't belong to user
+- 404 if any supplement_id not found in the stack (returns list of not_found IDs)
 
 ---
 
@@ -834,4 +1343,239 @@ Errors
 - Environment: `postman/StackWise.postman_environment.json`
 - Set `baseUrl` to your API Gateway URL. Use Signup/Login to populate `{{jwt}}` automatically via test scripts.
 
+
+
+# Schema Updates - StackWise API
+
+This document tracks recent schema changes that affect the front-end application. Use this alongside the API_README.md to understand what has changed in the API responses.
+
+---
+
+## Update 1: Removed `purpose` Field from Stack Supplements (October 2025)
+
+### What Changed
+
+The `StackSupplement` object in the `stacks` table's `supplements` JSONB column has been updated.
+
+**Before:**
+```typescript
+{
+  supplement_id: string;
+  dose: string;
+  name: string;
+  purpose: string;        // ← REMOVED
+  schedule: SupplementSchedule;
+  tags: Goal[];
+  rationale: string;      // ← ENHANCED
+  active: boolean;
+}
+```
+
+**After:**
+```typescript
+{
+  supplement_id: string;
+  dose: string;
+  name: string;
+  schedule: SupplementSchedule;
+  tags: Goal[];
+  rationale: string;      // Now contains personalized explanation
+  active: boolean;
+}
+```
+
+### Why This Changed
+
+- **Removed**: `purpose` field (was duplicate of rationale)
+- **Enhanced**: `rationale` now contains 1-2 sentence personalized explanation written in second person
+
+### Rationale Field Enhancement
+
+The `rationale` field is now AI-generated text that:
+- Speaks directly to the user (second person: "you", "your")
+- Explains WHY this supplement was selected for THIS specific user
+- References user's goals and profile
+
+**Example rationale text:**
+```
+"Based on your goal to build muscle and improve gym performance, creatine is an excellent choice for increasing strength and power output."
+```
+
+### Affected Endpoints
+
+#### POST /stack/generate
+**Response changed:**
+```json
+{
+  "stack": {
+    "supplements": [
+      {
+        "supplement_id": "uuid",
+        "name": "Creatine Monohydrate",
+        "dose": "5g",
+        "schedule": {
+          "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+          "times": ["morning"]
+        },
+        "tags": ["Build Muscle", "Increase Strength"],
+        "rationale": "Based on your goals to build muscle and increase strength, creatine is one of the most well-researched supplements for enhancing power output and supporting muscle growth.",
+        "active": true
+      }
+    ]
+  }
+}
+```
+
+**NoteMenu`purpose` field is no longer present in the response.
+
+#### GET /stack/current
+Same change - `purpose` field removed from each supplement object.
+
+#### GET /analytics/weekly-intake
+The `stack_intake_data` items don't include full supplement details, so this endpoint is unaffected.
+
+### Front-End Migration
+
+**Swift Model Update:**
+```swift
+struct StackSupplement: Codable {
+    let supplementId: String
+    let name: String
+    let dose: String
+    // let purpose: String  // ← REMOVE THIS
+    let schedule: SupplementSchedule
+    let tags: [String]
+    let rationale: String  // Keep this, now has personalized content
+    let active: Bool
+}
+```
+
+**UI Update:**
+```swift
+// Before:
+Text(supplement.purpose)  // Generic purpose
+
+// After:
+Text(supplement.rationale)  // Personalized "why this for you"
+```
+
+### Database Schema
+
+The `stacks` table's `supplements` JSONB column stores these objects. No database migration needed - it's just JSON data. Existing stacks will have both fields, new stacks will only have `rationale`.
+
+### Backward Compatibility
+
+If you have locally cached stacks with the old schema:
+- Old stacks will have both `purpose` and `rationale` (ignore `purpose`)
+- New stacks will only have `rationale`
+- Your Swift model can handle this by making `purpose` optional during transition, then removing it
+
+---
+
+## Update 2: Enhanced Supplement Descriptions (October 2025)
+
+### What Changed
+
+The `supplements` table schema has been updated with more detailed description fields.
+
+**Before:**
+```sql
+CREATE TABLE supplements (
+  id UUID,
+  name TEXT,
+  purpose TEXT,           -- ← REMOVED
+  ...
+);
+```
+
+**After:**
+```sql
+CREATE TABLE supplements (
+  id UUID,
+  name TEXT,
+  purpose_short TEXT,     -- ← NEW: 1 sentence overview
+  purpose_long TEXT,      -- ← NEW: 3-5 sentence overview
+  scientific_function TEXT, -- ← NEW: Scientific explanation
+  ...
+);
+```
+
+### Why This Changed
+
+- **More granularity**: Apps can choose which level of detail to display
+- **User education**: `scientific_function` helps users understand HOW supplements work
+- **Better UX**: Short descriptions for lists, long descriptions for detail views
+
+### New Fields Explained
+
+1. **purpose_short** (1 sentence)
+   - Quick overview for list views
+   - Example: "Supports muscle strength, power output, and cognitive function"
+
+2. **purpose_long** (3-5 sentences)
+   - Detailed overview for detail/info views
+   - Explains benefits and use cases
+   - Example: "Creatine monohydrate is one of the most researched supplements for athletic performance. It enhances strength, increases muscle mass..."
+
+3. **scientific_function** (3-5 sentences)
+   - Technical explanation of mechanism of action
+   - For users who want to understand the science
+   - Example: "Creatine increases phosphocreatine stores in muscles, enabling rapid ATP regeneration..."
+
+### Affected Endpoints
+
+#### None (supplements table is reference data)
+
+The supplements table is used internally by the API to generate stacks, but supplement details are not directly exposed to the front-end through any current endpoints.
+
+**Note**: If you add an endpoint to browse/search supplements in the future, it will include these new fields.
+
+### Database Migration
+
+**Migration**: `migrations/0004_update_supplement_descriptions.sql`
+
+This migration:
+1. Adds three new TEXT columns
+2. Populates data for all 5 existing supplements
+3. Drops the old `purpose` column
+
+### Front-End Impact
+
+**No immediate action required** - This change is internal to the API.
+
+However, if you later add features to display supplement information (e.g., "Learn More" about a supplement), you can query these fields.
+
+### Sample Data
+
+**Creatine Monohydrate:**
+- purpose_short: "Supports muscle strength, power output, and cognitive function"
+- purpose_long: "Creatine monohydrate is one of the most researched supplements for athletic performance. It enhances strength, increases muscle mass, improves high-intensity exercise performance, and may support cognitive function and brain health."
+- scientific_function: "Creatine increases phosphocreatine stores in muscles, enabling rapid ATP regeneration during high-intensity activities..."
+
+---
+
+## Future Updates
+
+Additional schema changes will be documented here as they occur.
+
+### Template for Future Updates:
+
+```markdown
+## Update N: [Title] (Date)
+
+### What Changed
+- Describe the change
+
+### Why This Changed
+- Reason for the change
+
+### Affected Endpoints
+- List endpoints with before/after examples
+
+### Front-End Migration
+- Code changes needed
+
+### Backward Compatibility
+- How to handle transition
+```
 

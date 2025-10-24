@@ -114,7 +114,7 @@ public class MockExportService: ExportService {
             content += """
             
             • \(supplement.name)
-              Purpose: \(supplement.purpose)
+              Purpose: \(supplement.purposeShort ?? supplement.rationale)
               Dose: \(supplement.doseRangeText)
               Timing: \(timingText)
             """
@@ -130,7 +130,7 @@ public class MockExportService: ExportService {
                 content += """
                 
                 • \(supplement.name)
-                  Purpose: \(supplement.purpose)
+                  Purpose: \(supplement.purposeShort ?? supplement.rationale)
                   Dose: \(supplement.doseRangeText)
                   Timing: \(timingText)
                 """

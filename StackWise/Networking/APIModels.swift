@@ -88,16 +88,103 @@ public struct APIStackSupplement: Codable {
     let supplementId: String
     let name: String
     let dose: String
-    let purpose: String
     let schedule: APISupplementSchedule
     let tags: [String]
     let rationale: String
     let active: Bool
+    // These fields will be populated from the supplement database internally
+    let purposeShort: String?
+    let purposeLong: String?
+    let scientificFunction: String?
 }
 
 public struct APISupplementSchedule: Codable {
     let daysOfWeek: [String]
     let times: [String]
+}
+
+// MARK: - Toggle Supplement Models
+
+public struct ToggleSupplementsRequest: Codable {
+    let updates: [SupplementUpdate]
+    
+    public struct SupplementUpdate: Codable {
+        let supplementId: String
+        let active: Bool
+    }
+}
+
+public struct ToggleSupplementsResponse: Codable {
+    let message: String
+    let updatedCount: Int
+    let updates: [SupplementUpdateResult]
+    
+    public struct SupplementUpdateResult: Codable {
+        let supplementId: String
+        let active: Bool
+    }
+}
+
+// MARK: - Chat Models
+
+// Empty struct for creating session without title
+public struct CreateSessionRequest: Codable {
+    // Send empty object {} to match what Postman sends
+    public init() {}
+}
+
+// Struct for creating session with title
+public struct CreateSessionWithTitleRequest: Codable {
+    let title: String
+    
+    public init(title: String) {
+        self.title = title
+    }
+}
+
+public struct CreateSessionResponse: Codable {
+    let sessionId: String
+    let title: String?
+    let createdAt: String
+}
+
+public struct ChatSessionsResponse: Codable {
+    let sessions: [APIChatSession]
+    let nextCursor: String?
+}
+
+public struct APIChatSession: Codable {
+    let id: String
+    let userId: String
+    let title: String?
+    let createdAt: String
+    let updatedAt: String
+}
+
+public struct ChatSessionDetailResponse: Codable {
+    let session: APIChatSession
+    let messages: [APIChatMessage]
+    let hasMore: Bool
+}
+
+public struct APIChatMessage: Codable {
+    let id: String
+    let sessionId: String
+    let userId: String
+    let role: String
+    let content: String
+    let createdAt: String
+}
+
+public struct SendMessageRequest: Codable {
+    let message: String
+}
+
+public struct SendMessageResponse: Codable {
+    let messageId: String
+    let content: String
+    let role: String
+    let createdAt: String
 }
 
 // MARK: - Analytics Models
@@ -198,7 +285,9 @@ extension APIStack {
             Supplement(
                 id: apiSupplement.supplementId,
                 name: apiSupplement.name,
-                purpose: apiSupplement.purpose,
+                purposeShort: apiSupplement.purposeShort,
+                purposeLong: apiSupplement.purposeLong,
+                scientificFunction: apiSupplement.scientificFunction,
                 doseRangeText: apiSupplement.dose,
                 formNote: nil,
                 timingTag: nil, // Using schedule instead
@@ -206,6 +295,7 @@ extension APIStack {
                 flags: [], // Could be derived from dietary_flags if needed
                 citations: [],
                 rationale: apiSupplement.rationale,
+                active: apiSupplement.active,
                 schedule: SupplementSchedule(
                     daysOfWeek: apiSupplement.schedule.daysOfWeek,
                     times: apiSupplement.schedule.times
@@ -216,6 +306,6 @@ extension APIStack {
         
         // API returns all supplements in one array, we'll put them all in minimal
         // The Stack view will display all of them
-        return Stack(minimal: allSupplements, addons: [])
+        return Stack(id: id, minimal: allSupplements, addons: [])
     }
 }

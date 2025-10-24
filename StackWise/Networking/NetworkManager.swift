@@ -4,7 +4,7 @@ import Foundation
 public class NetworkManager {
     static let shared = NetworkManager()
     
-    private let baseURL = "https://xuy07kjq0b.execute-api.us-east-1.amazonaws.com/"
+    private let baseURL = "https://7pcymt07l8.execute-api.us-east-1.amazonaws.com/"
     private let session: URLSession
     
     private init() {
@@ -81,6 +81,14 @@ public class NetworkManager {
             let encoder = JSONEncoder()
             encoder.keyEncodingStrategy = .convertToSnakeCase
             bodyData = try encoder.encode(body)
+            
+            // Debug logging
+            #if DEBUG
+            if let jsonString = String(data: bodyData!, encoding: .utf8) {
+                print("📤 \(method) \(endpoint)")
+                print("📦 Request body: \(jsonString)")
+            }
+            #endif
         }
         
         let request = try buildRequest(
@@ -95,6 +103,14 @@ public class NetworkManager {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw NetworkError.invalidResponse
         }
+        
+        // Debug logging for responses
+        #if DEBUG
+        print("📥 Response: \(httpResponse.statusCode)")
+        if let responseString = String(data: data, encoding: .utf8) {
+            print("📦 Response body: \(responseString)")
+        }
+        #endif
         
         // Check for errors
         if httpResponse.statusCode >= 400 {

@@ -70,4 +70,23 @@ public class RealRecommendationService: RecommendationService {
             throw error
         }
     }
+    
+    public func toggleSupplementActive(stackId: String, supplementId: String, active: Bool) async throws {
+        let request = ToggleSupplementsRequest(
+            updates: [
+                ToggleSupplementsRequest.SupplementUpdate(
+                    supplementId: supplementId,
+                    active: active
+                )
+            ]
+        )
+        
+        _ = try await networkManager.request(
+            endpoint: "stack/\(stackId)/supplements",
+            method: "PATCH",
+            body: request,
+            requiresAuth: true,
+            responseType: ToggleSupplementsResponse.self
+        )
+    }
 }
