@@ -111,6 +111,9 @@ struct WelcomeScreen: View {
         .sheet(isPresented: $viewModel.showSignupScreen) {
             SignupScreen(viewModel: viewModel)
         }
+        .sheet(isPresented: $viewModel.showPasswordReset) {
+            PasswordResetScreen(viewModel: viewModel)
+        }
         .alert("Authentication Error", isPresented: $viewModel.showAuthError) {
             Button("OK", role: .cancel) { }
         } message: {

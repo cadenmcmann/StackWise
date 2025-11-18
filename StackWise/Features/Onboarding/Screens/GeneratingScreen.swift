@@ -5,14 +5,27 @@ struct GeneratingScreen: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @State private var animationPhase = 0
     
-    let loadingMessages = [
-        "Analyzing your goals...",
-        "Reviewing your health profile...",
-        "Selecting evidence-based supplements...",
-        "Optimizing dosages...",
-        "Checking interactions...",
-        "Finalizing your stack..."
-    ]
+    var loadingMessages: [String] {
+        if viewModel.container.isRemixFlow {
+            return [
+                "Analyzing your updated goals...",
+                "Reviewing your new preferences...",
+                "Adjusting supplement selection...",
+                "Re-optimizing dosages...",
+                "Verifying interactions...",
+                "Updating your stack..."
+            ]
+        } else {
+            return [
+                "Analyzing your goals...",
+                "Reviewing your health profile...",
+                "Selecting evidence-based supplements...",
+                "Optimizing dosages...",
+                "Checking interactions...",
+                "Finalizing your stack..."
+            ]
+        }
+    }
     
     var body: some View {
         VStack(spacing: Theme.Spacing.xxl) {
@@ -47,7 +60,7 @@ struct GeneratingScreen: View {
             }
             
             VStack(spacing: Theme.Spacing.md) {
-                Text("Creating Your Stack")
+                Text(viewModel.container.isRemixFlow ? "Updating Your Stack" : "Creating Your Stack")
                     .font(Theme.Typography.titleL)
                     .foregroundColor(Theme.Colors.textPrimary)
                 

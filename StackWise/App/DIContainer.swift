@@ -20,9 +20,27 @@ public class DIContainer: ObservableObject {
     @Published public var currentUser: User?
     @Published public var currentStack: Stack?
     @Published public var onboardingCompleted: Bool = false
+    @Published public var isRemixFlow: Bool = false
+    @Published public var remixIntake: Intake? = nil
+    @Published public var currentJobId: String? = nil
+    @Published public var jobRetryCount: Int = 0
     
     // Shared intake log manager for both Today and Track screens
     public let intakeLogManager: IntakeLogManager
+    
+    // MARK: - Services Access
+    public var services: Services {
+        Services(
+            authService: authService,
+            recommendationService: recommendationService,
+            scheduleService: scheduleService,
+            trackingService: trackingService,
+            chatService: chatService,
+            exportService: exportService,
+            goalsService: goalsService,
+            preferencesService: preferencesService
+        )
+    }
     
     // MARK: - Initialization
     public init(useMocks: Bool = false) {
@@ -85,8 +103,69 @@ public class DIContainer: ObservableObject {
     }
     
     public func generateStack(from intake: Intake) async throws {
-        currentStack = try await recommendationService.generateStack(intake: intake)
+        let service = recommendationService
+        
+        // Start generation and get job_id
+        let jobId = try await service.startStackGeneration(intake: intake)
+        
+        // Persist job_id for app backgrounding
+        currentJobId = jobId
+        jobRetryCount = 0
         savePersistedState()
+        
+        // Wait 20 seconds before first poll
+        try await Task.sleep(nanoseconds: 20_000_000_000)
+        
+        // Poll until completed or failed
+        try await pollJobUntilComplete(jobId: jobId)
+    }
+    
+    private func pollJobUntilComplete(jobId: String) async throws {
+        let service = recommendationService
+        
+        while true {
+            let status = try await service.pollStackGenerationStatus(jobId: jobId)
+            
+            switch status {
+            case .completed(let stackId):
+                print("✅ Stack generation completed: \(stackId)")
+                // Fetch the completed stack
+                currentStack = try await service.fetchCurrentStack()
+                currentJobId = nil
+                savePersistedState()
+                return
+                
+            case .failed(let errorMessage):
+                if jobRetryCount < 1 {
+                    // Auto-retry once
+                    print("⚠️ Stack generation failed, retrying... Error: \(errorMessage)")
+                    jobRetryCount += 1
+                    savePersistedState()
+                    try await service.retryStackGeneration(jobId: jobId)
+                    // Wait and continue polling
+                    try await Task.sleep(nanoseconds: 3_000_000_000)
+                } else {
+                    // Give up after one retry
+                    print("❌ Stack generation failed after retry: \(errorMessage)")
+                    currentJobId = nil
+                    savePersistedState()
+                    throw NetworkError.apiError(message: "Stack generation failed: \(errorMessage)", statusCode: 500)
+                }
+                
+            case .pending, .processing:
+                // Wait 3 seconds before next poll
+                try await Task.sleep(nanoseconds: 3_000_000_000)
+            }
+        }
+    }
+    
+    public func resumeJobPolling() async throws {
+        guard let jobId = currentJobId else { return }
+        
+        print("🔄 Resuming job polling for: \(jobId)")
+        
+        // Continue polling the existing job
+        try await pollJobUntilComplete(jobId: jobId)
     }
     
     public func remixStack(with options: RemixOptions) async throws {
@@ -118,6 +197,10 @@ public class DIContainer: ObservableObject {
         // Load onboarding status
         onboardingCompleted = defaults.bool(forKey: "onboardingCompleted")
         
+        // Load job state
+        currentJobId = defaults.string(forKey: "currentJobId")
+        jobRetryCount = defaults.integer(forKey: "jobRetryCount")
+        
         // Load user if exists
         if let userData = defaults.data(forKey: "currentUser"),
            let user = try? JSONDecoder().decode(User.self, from: userData) {
@@ -135,6 +218,8 @@ public class DIContainer: ObservableObject {
         let defaults = UserDefaults.standard
         
         defaults.set(onboardingCompleted, forKey: "onboardingCompleted")
+        defaults.set(currentJobId, forKey: "currentJobId")
+        defaults.set(jobRetryCount, forKey: "jobRetryCount")
         
         if let user = currentUser,
            let userData = try? JSONEncoder().encode(user) {
@@ -152,6 +237,8 @@ public class DIContainer: ObservableObject {
         defaults.removeObject(forKey: "onboardingCompleted")
         defaults.removeObject(forKey: "currentUser")
         defaults.removeObject(forKey: "currentStack")
+        defaults.removeObject(forKey: "currentJobId")
+        defaults.removeObject(forKey: "jobRetryCount")
     }
 }
 
@@ -166,4 +253,16 @@ public extension EnvironmentValues {
         get { self[DIContainerKey.self] }
         set { self[DIContainerKey.self] = newValue }
     }
+}
+
+// MARK: - Services
+public struct Services {
+    public let authService: AuthService
+    public let recommendationService: RecommendationService
+    public let scheduleService: ScheduleService
+    public let trackingService: TrackingService
+    public let chatService: ChatService
+    public let exportService: ExportService
+    public let goalsService: GoalsService
+    public let preferencesService: PreferencesService
 }

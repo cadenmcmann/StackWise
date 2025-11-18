@@ -8,11 +8,11 @@ struct ReviewScreen: View {
         VStack(spacing: 0) {
             // Header
             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                Text("Review Your Information")
+                Text(viewModel.container.isRemixFlow ? "Review Your Updated Information" : "Review Your Information")
                     .font(Theme.Typography.titleL)
                     .foregroundColor(Theme.Colors.textPrimary)
                 
-                Text("Make sure everything looks right")
+                Text(viewModel.container.isRemixFlow ? "Make any adjustments before we update your stack" : "Make sure everything looks right")
                     .font(Theme.Typography.body)
                     .foregroundColor(Theme.Colors.textSecondary)
             }

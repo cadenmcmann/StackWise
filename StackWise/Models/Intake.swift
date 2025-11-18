@@ -89,7 +89,7 @@ public struct Basics: Codable {
         height: Double = 170,
         weight: Double = 70,
         bodyFat: Double? = nil,
-        stimulantTolerance: User.StimulantTolerance = .medium,
+        stimulantTolerance: User.StimulantTolerance = .moderate,
         budgetPerMonth: Double = 100,
         dietaryPreferences: Set<DietaryPreference> = []
     ) {

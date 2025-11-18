@@ -87,8 +87,14 @@ public struct TrackView: View {
                     LoadingView(message: "Loading tracking data...")
                 }
             }
-            .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("History")
+                        .font(Theme.Typography.titleM)
+                        .fontWeight(.semibold)
+                }
+            }
         }
         .task {
             await viewModel.loadWeekData()

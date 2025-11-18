@@ -21,11 +21,6 @@ public struct StackView: View {
                             // Active supplements
                             if !stack.activeSupplements.isEmpty {
                                 VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                                    Text("Your personalized stack")
-                                        .font(Theme.Typography.titleM)
-                                        .foregroundColor(Theme.Colors.textPrimary)
-                                        .padding(.horizontal, Theme.Spacing.gutter)
-                                    
                                     ForEach(stack.activeSupplements) { supplement in
                                         SupplementCard(supplement: supplement) {
                                             selectedSupplement = supplement
@@ -72,20 +67,12 @@ public struct StackView: View {
                                 }
                             }
                             
-                            // Action buttons
-                            VStack(spacing: Theme.Spacing.md) {
-                                PrimaryButton(
-                                    title: "Start Schedule",
-                                    icon: "calendar",
-                                    action: { viewModel.startSchedule() }
-                                )
-                                
-                                SecondaryButton(
-                                    title: "Remix Stack",
-                                    icon: "arrow.triangle.2.circlepath",
-                                    action: { viewModel.showRemixSheet = true }
-                                )
-                            }
+                            // Remix Stack button
+                            SecondaryButton(
+                                title: "Remix Stack",
+                                icon: "arrow.triangle.2.circlepath",
+                                action: { viewModel.showRemixConfirmation = true }
+                            )
                             .padding(Theme.Spacing.gutter)
                         }
                         .padding(.vertical, Theme.Spacing.lg)
@@ -98,9 +85,14 @@ public struct StackView: View {
                     LoadingView(message: "Updating your stack...")
                 }
             }
-            .navigationTitle("Stack")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Your Personalized Stack")
+                        .font(Theme.Typography.titleM)
+                        .fontWeight(.semibold)
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                     Task {
@@ -113,10 +105,17 @@ public struct StackView: View {
                     }
                 }
             }
-            .sheet(isPresented: $viewModel.showRemixSheet) {
-                RemixSheet(viewModel: viewModel)
-        }
-        .fullScreenCover(item: $selectedSupplement) { supplement in
+            .alert("Remix Your Stack?", isPresented: $viewModel.showRemixConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Remix", role: .destructive) {
+                    Task {
+                        await viewModel.startRemixFlow()
+                    }
+                }
+            } message: {
+                Text("Remixing your stack will generate a new supplement regimen based on updated preferences. Your current stack will be replaced and cannot be recovered.")
+            }
+            .fullScreenCover(item: $selectedSupplement) { supplement in
             SupplementDetailSheet(
                 supplement: supplement,
                 stackId: viewModel.stack?.id,
@@ -223,74 +222,6 @@ struct FilterChip: View {
             isSelected: isSelected,
             action: action
         )
-    }
-}
-
-// MARK: - RemixSheet
-struct RemixSheet: View {
-    @ObservedObject var viewModel: StackViewModel
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
-                    Text("Adjust your stack based on your preferences")
-                        .font(Theme.Typography.body)
-                        .foregroundColor(Theme.Colors.textSecondary)
-                    
-                    VStack(spacing: Theme.Spacing.lg) {
-                        CustomToggle(
-                            title: "Fewer Pills",
-                            subtitle: "Reduce the number of supplements",
-                            isOn: $viewModel.remixOptions.fewerPills
-                        )
-                        
-                        CustomToggle(
-                            title: "Cheaper Options",
-                            subtitle: "Optimize for budget-friendly choices",
-                            isOn: $viewModel.remixOptions.cheaper
-                        )
-                        
-                        CustomToggle(
-                            title: "Stimulant-Free",
-                            subtitle: "Remove all stimulants",
-                            isOn: $viewModel.remixOptions.stimulantFree
-                        )
-                        
-                        CustomToggle(
-                            title: "Athlete Mode",
-                            subtitle: "Optimize for athletic performance",
-                            isOn: $viewModel.remixOptions.athleteMode
-                        )
-                    }
-                }
-                .padding(Theme.Spacing.gutter)
-                
-                Spacer()
-                
-                VStack(spacing: Theme.Spacing.md) {
-                    PrimaryButton(
-                        title: "Apply Changes",
-                        action: {
-                            Task {
-                                await viewModel.remixStack()
-                                dismiss()
-                            }
-                        },
-                        isLoading: viewModel.isLoading
-                    )
-                    
-                    SecondaryButton(
-                        title: "Cancel",
-                        action: { dismiss() }
-                    )
-                }
-                .padding(Theme.Spacing.gutter)
-            }
-            .navigationTitle("Remix Options")
-            .navigationBarTitleDisplayMode(.inline)
-        }
     }
 }
 

@@ -10,6 +10,8 @@ public class ProfileViewModel: ObservableObject {
     @Published var visibleSupplementIds: Set<String> = []
     @Published var showDeleteAccountAlert = false
     @Published var showExportSuccess = false
+    @Published var showEditProfile = false
+    @Published var showPasswordReset = false
     @Published var isLoading = false
     
     private let container: DIContainer
@@ -26,6 +28,16 @@ public class ProfileViewModel: ObservableObject {
     }
     
     // MARK: - Actions
+    
+    func loadUserData() {
+        self.user = container.currentUser
+        self.stack = container.currentStack
+        
+        // Initialize all supplements as visible
+        if let stack = stack {
+            visibleSupplementIds = Set(stack.allSupplements.map { $0.id })
+        }
+    }
     
     func toggleSupplementVisibility(_ supplementId: String) {
         if visibleSupplementIds.contains(supplementId) {

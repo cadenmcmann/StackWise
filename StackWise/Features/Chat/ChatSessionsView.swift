@@ -20,9 +20,14 @@ public struct ChatSessionsView: View {
                     sessionsList
                 }
             }
-            .navigationTitle("Chat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("Chat")
+                        .font(Theme.Typography.titleM)
+                        .fontWeight(.semibold)
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         Task {

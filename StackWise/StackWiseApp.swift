@@ -19,6 +19,7 @@ struct ContentView: View {
     @EnvironmentObject var container: DIContainer
     @State private var showOnboarding = false
     @State private var selectedTab = 0
+    @Environment(\.scenePhase) var scenePhase
     
     var body: some View {
         ZStack {
@@ -31,6 +32,7 @@ struct ContentView: View {
                 // Show onboarding
                 OnboardingFlow(container: container)
                     .environmentObject(container)
+                    .id(container.isRemixFlow ? "remix" : "onboarding")
             }
         }
         .onAppear {
@@ -42,6 +44,18 @@ struct ContentView: View {
                 // Transition from onboarding to main app
                 withAnimation(Theme.Animation.standard) {
                     showOnboarding = false
+                }
+            }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            if newPhase == .active && container.currentJobId != nil {
+                // Resume polling for pending job when app returns from background
+                Task {
+                    do {
+                        try await container.resumeJobPolling()
+                    } catch {
+                        print("Failed to resume job polling: \(error)")
+                    }
                 }
             }
         }
@@ -61,7 +75,7 @@ struct MainTabView: View {
                 }
                 .tag(0)
             
-            ScheduleView(container: container)
+            TodayView(container: container)
                 .tabItem {
                     Label("Today", systemImage: "checklist")
                 }

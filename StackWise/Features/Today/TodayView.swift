@@ -1,14 +1,14 @@
 import SwiftUI
 
-// MARK: - ScheduleView
-public struct ScheduleView: View {
-    @StateObject private var viewModel: ScheduleViewModel
+// MARK: - TodayView
+public struct TodayView: View {
+    @StateObject private var viewModel: TodayViewModel
     @ObservedObject private var intakeLogManager: IntakeLogManager
     @State private var showReminderSuccess = false
     @Environment(\.container) private var container
     
     public init(container: DIContainer) {
-        _viewModel = StateObject(wrappedValue: ScheduleViewModel(container: container))
+        _viewModel = StateObject(wrappedValue: TodayViewModel(container: container))
         self.intakeLogManager = container.intakeLogManager
     }
     
@@ -33,7 +33,7 @@ public struct ScheduleView: View {
                             .padding(.horizontal, Theme.Spacing.gutter)
                             
                             // Time sections
-                            ForEach(ScheduleViewModel.TimeSection.allCases, id: \.self) { section in
+                            ForEach(TodayViewModel.TimeSection.allCases, id: \.self) { section in
                                 let sectionReminders = viewModel.remindersForSection(section)
                                 if !sectionReminders.isEmpty {
                                     TimeSectionView(
@@ -43,14 +43,6 @@ public struct ScheduleView: View {
                                     )
                                 }
                             }
-                            
-                            // Set reminders button
-                            PrimaryButton(
-                                title: "Set Reminders",
-                                icon: "bell.fill",
-                                action: { viewModel.setReminders() }
-                            )
-                            .padding(.horizontal, Theme.Spacing.gutter)
                         }
                         .padding(.vertical, Theme.Spacing.lg)
                     }
@@ -66,14 +58,6 @@ public struct ScheduleView: View {
                 
                 if viewModel.isLoading {
                     LoadingView(message: "Loading schedule...")
-                }
-            }
-            .sheet(isPresented: $viewModel.showReminderSettings) {
-                if let reminder = viewModel.selectedReminder {
-                    ReminderSettingsSheet(
-                        reminder: reminder,
-                        viewModel: viewModel
-                    )
                 }
             }
             .alert("Notifications Disabled", isPresented: $viewModel.showNotificationPermission) {
@@ -180,9 +164,9 @@ struct TodayProgressCard: View {
 
 // MARK: - TimeSectionView
 struct TimeSectionView: View {
-    let section: ScheduleViewModel.TimeSection
+    let section: TodayViewModel.TimeSection
     let reminders: [Reminder]
-    @ObservedObject var viewModel: ScheduleViewModel
+    @ObservedObject var viewModel: TodayViewModel
     
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.md) {
@@ -216,7 +200,7 @@ struct TimeSectionView: View {
 // MARK: - ReactiveTimelineRow
 struct ReactiveTimelineRow: View {
     let reminder: Reminder
-    @ObservedObject var viewModel: ScheduleViewModel
+    @ObservedObject var viewModel: TodayViewModel
     
     var body: some View {
         let timeString = viewModel.timeStringForReminder(reminder)
@@ -235,10 +219,6 @@ struct ReactiveTimelineRow: View {
                     supplementId: reminder.supplementId,
                     time: timeString
                 )
-            },
-            onSettings: {
-                viewModel.selectedReminder = reminder
-                viewModel.showReminderSettings = true
             }
         )
         // Force re-render when state changes - include refreshTrigger to trigger updates
@@ -254,7 +234,6 @@ struct TimelineRow: View {
     let supplementIcon: String
     let isTaken: Bool
     let onToggle: () -> Void
-    let onSettings: () -> Void
     
     private var timeString: String {
         let formatter = DateFormatter()
@@ -284,13 +263,6 @@ struct TimelineRow: View {
             
             Spacer()
             
-            // Settings button
-            Button(action: onSettings) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 14))
-                    .foregroundColor(Theme.Colors.textSecondary)
-            }
-            
             // Taken toggle
             Button(action: onToggle) {
                 Image(systemName: isTaken ? "checkmark.circle.fill" : "circle")
@@ -306,63 +278,5 @@ struct TimelineRow: View {
         )
         .contentShape(Rectangle())
         .animation(Theme.Animation.quick, value: isTaken)
-    }
-}
-
-// MARK: - ReminderSettingsSheet
-struct ReminderSettingsSheet: View {
-    @State var reminder: Reminder
-    let viewModel: ScheduleViewModel
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: Theme.Spacing.xl) {
-                // Time picker
-                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                    Text("Reminder Time")
-                        .font(Theme.Typography.subhead)
-                        .foregroundColor(Theme.Colors.textPrimary)
-                    
-                    DatePicker(
-                        "",
-                        selection: $reminder.timeOfDay,
-                        displayedComponents: .hourAndMinute
-                    )
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                }
-                
-                // Enable toggle
-                CustomToggle(
-                    title: "Enable Reminder",
-                    subtitle: "Get notified when it's time to take this supplement",
-                    isOn: $reminder.enabled
-                )
-                
-                Spacer()
-                
-                // Save button
-                PrimaryButton(
-                    title: "Save Changes",
-                    action: {
-                        Task {
-                            await viewModel.updateReminder(reminder)
-                            dismiss()
-                        }
-                    }
-                )
-            }
-            .padding(Theme.Spacing.gutter)
-            .navigationTitle("Reminder Settings")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-        }
     }
 }

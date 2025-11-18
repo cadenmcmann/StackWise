@@ -5,7 +5,35 @@ public class MockRecommendationService: RecommendationService {
     
     public init() {}
     
-    public func generateStack(intake: Intake) async throws -> Stack {
+    public func startStackGeneration(intake: Intake) async throws -> String {
+        // Simulate API delay
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        return UUID().uuidString
+    }
+    
+    public func pollStackGenerationStatus(jobId: String) async throws -> StackJobStatus {
+        // Simulate polling delay
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        // Simulate completed status
+        return .completed(stackId: UUID().uuidString)
+    }
+    
+    public func retryStackGeneration(jobId: String) async throws {
+        // Simulate retry delay
+        try await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+    }
+    
+    public func fetchCurrentStack() async throws -> Stack? {
+        // Simulate API delay
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        
+        // Return a mock stack with default supplements
+        let minimal = [createCreatine(), createMagnesium()]
+        let addons = [createVitaminD()]
+        return Stack(minimal: minimal, addons: addons)
+    }
+    
+    private func generateMockStack(intake: Intake) async throws -> Stack {
         // Simulate processing delay
         try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
         

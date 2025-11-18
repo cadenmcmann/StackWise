@@ -6,8 +6,7 @@ import SwiftUI
 public class StackViewModel: ObservableObject {
     @Published var stack: Stack?
     @Published var isLoading = false
-    @Published var showRemixSheet = false
-    @Published var remixOptions = RemixOptions()
+    @Published var showRemixConfirmation = false
     
     private let container: DIContainer
     
@@ -25,25 +24,26 @@ public class StackViewModel: ObservableObject {
     
     // MARK: - Actions
     
-    func startSchedule() {
-        // TODO: Navigate to Schedule tab and pre-fill reminders
-        // For now, just set a flag or notification
-    }
-    
-    func remixStack() async {
-        isLoading = true
-        
+    func startRemixFlow() async {
+        // Fetch current user preferences to pre-fill the onboarding
         do {
-            try await container.remixStack(with: remixOptions)
-            stack = container.currentStack
-            showRemixSheet = false
-            remixOptions = RemixOptions() // Reset options
+            let preferences = try await container.preferencesService.fetchPreferences()
+            
+            // Set all flags together on main actor to avoid race conditions
+            await MainActor.run {
+                container.remixIntake = preferences
+                container.isRemixFlow = true
+                container.onboardingCompleted = false
+            }
         } catch {
-            // Handle error
-            print("Failed to remix stack: \(error)")
+            print("Failed to fetch preferences for remix: \(error)")
+            // If we can't fetch preferences, still allow remix with empty intake
+            await MainActor.run {
+                container.remixIntake = nil
+                container.isRemixFlow = true
+                container.onboardingCompleted = false
+            }
         }
-        
-        isLoading = false
     }
     
     func exportStack() async -> URL? {

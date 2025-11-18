@@ -27,7 +27,7 @@ struct SplashScreen: View {
             
             // Disclaimers
             VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                Text("Important Information")
+                Text(viewModel.container.isRemixFlow ? "Confirm Your Information" : "Important Information")
                     .font(Theme.Typography.titleM)
                     .foregroundColor(Theme.Colors.textPrimary)
                 

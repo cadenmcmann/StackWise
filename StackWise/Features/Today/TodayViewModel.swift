@@ -3,9 +3,9 @@ import SwiftUI
 import UserNotifications
 import Combine
 
-// MARK: - ScheduleViewModel
+// MARK: - TodayViewModel
 @MainActor
-public class ScheduleViewModel: ObservableObject {
+public class TodayViewModel: ObservableObject {
     @Published var reminders: [Reminder] = []
     @Published var todayIntakeData: DayIntakeData?
     @Published var isLoading = false

@@ -6,20 +6,56 @@ public class RealRecommendationService: RecommendationService {
     
     public init() {}
     
-    public func generateStack(intake: Intake) async throws -> Stack {
+    public func startStackGeneration(intake: Intake) async throws -> String {
         // First, save the preferences
         let preferencesService = RealPreferencesService()
         try await preferencesService.savePreferences(intake)
         
-        // Then generate the stack
+        // Start async generation
         let response = try await networkManager.request(
             endpoint: "stack/generate",
             method: "POST",
             requiresAuth: true,
-            responseType: StackResponse.self
+            responseType: GenerateStackJobResponse.self
         )
         
-        return response.stack.toStack()
+        return response.jobId
+    }
+    
+    public func pollStackGenerationStatus(jobId: String) async throws -> StackJobStatus {
+        let response = try await networkManager.request(
+            endpoint: "stack/generate/status/\(jobId)",
+            method: "GET",
+            requiresAuth: true,
+            responseType: StackJobStatusResponse.self
+        )
+        
+        switch response.status {
+        case "pending":
+            return .pending
+        case "processing":
+            return .processing
+        case "completed":
+            guard let stackId = response.stackId else {
+                struct MissingStackIdError: Error {}
+                throw NetworkError.decodingError(MissingStackIdError())
+            }
+            return .completed(stackId: stackId)
+        case "failed":
+            return .failed(errorMessage: response.errorMessage ?? "Unknown error")
+        default:
+            struct InvalidStatusError: Error {}
+            throw NetworkError.decodingError(InvalidStatusError())
+        }
+    }
+    
+    public func retryStackGeneration(jobId: String) async throws {
+        _ = try await networkManager.request(
+            endpoint: "stack/generate/retry/\(jobId)",
+            method: "POST",
+            requiresAuth: true,
+            responseType: RetryJobResponse.self
+        )
     }
     
     public func remixStack(currentStack: Stack, options: RemixOptions) async throws -> Stack {

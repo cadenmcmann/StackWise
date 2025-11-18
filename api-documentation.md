@@ -497,6 +497,9 @@ Below are the key tables and columns used by the API. Types are PostgreSQL.
 - `email` TEXT UNIQUE NULLABLE
 - `password_hash` TEXT NULLABLE
 - `apple_sub` TEXT NULLABLE
+- `first_name` VARCHAR(255) NULLABLE
+- `last_name` VARCHAR(255) NULLABLE
+- `phone_number` VARCHAR(20) UNIQUE NULLABLE (E.164 format, e.g., +12345678901)
 - `created_at` TIMESTAMP DEFAULT now()
 
 ### user_preferences
@@ -588,6 +591,18 @@ Below are the key tables and columns used by the API. Types are PostgreSQL.
 - `created_at` TIMESTAMP NOT NULL DEFAULT now()
 - Indexes: session_id, user_id, created_at, (session_id, created_at DESC)
 
+### verification_codes
+- `id` UUID PRIMARY KEY DEFAULT gen_random_uuid()
+- `user_id` UUID REFERENCES users(id) (nullable)
+- `email` VARCHAR(255) NULLABLE
+- `phone_number` VARCHAR(20) NULLABLE
+- `code_hash` VARCHAR(255) NOT NULL (hashed 6-digit code)
+- `purpose` VARCHAR(50) NOT NULL ('login' or 'password_reset')
+- `expires_at` TIMESTAMP NOT NULL (1 minute expiration)
+- `verified` BOOLEAN NOT NULL DEFAULT false (single-use)
+- `created_at` TIMESTAMP NOT NULL DEFAULT now()
+- Indexes: email, phone_number, expires_at, user_id
+
 ### schema_migrations (internal)
 - `id` SERIAL PRIMARY KEY
 - `filename` TEXT NOT NULL UNIQUE
@@ -607,7 +622,7 @@ All JSON bodies are UTF-8 encoded. Unless otherwise stated, responses are JSON.
 ### Auth
 
 #### POST /auth/signup
-Creates a new user with email/password and returns a JWT.
+Creates a new user with email/password and returns a JWT. Optionally accepts profile fields.
 
 Request
 ```http
@@ -616,9 +631,19 @@ Content-Type: application/json
 
 {
   "email": "user@example.com",
-  "password": "Password123!"
+  "password": "Password123!",
+  "first_name": "John",
+  "last_name": "Doe",
+  "phone_number": "+12345678901"
 }
 ```
+
+**Request Fields:**
+- `email`: Required, valid email address
+- `password`: Required, minimum 8 characters
+- `first_name`: Optional, user's first name
+- `last_name`: Optional, user's last name
+- `phone_number`: Optional, phone number in E.164 format (e.g., +12345678901)
 
 Response (201)
 ```json
@@ -627,6 +652,9 @@ Response (201)
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
+    "phone_number": "+12345678901",
+    "first_name": "John",
+    "last_name": "Doe",
     "created_at": "2025-01-01T00:00:00.000Z"
   },
   "has_active_stack": false,
@@ -639,13 +667,13 @@ Response (201)
 - `needs_onboarding`: Whether the user needs to go through the onboarding flow (always `true` for new signups)
 
 Errors
-- 400 if invalid input
-- 409 if email already exists
+- 400 if invalid input or invalid phone number format
+- 409 if email or phone number already exists
 
 #### POST /auth/login
-Logs in an existing user and returns a JWT.
+Logs in an existing user with email/password OR phone/password and returns a JWT.
 
-Request
+Request (Email)
 ```http
 POST {{baseUrl}}auth/login
 Content-Type: application/json
@@ -656,6 +684,21 @@ Content-Type: application/json
 }
 ```
 
+Request (Phone Number)
+```http
+POST {{baseUrl}}auth/login
+Content-Type: application/json
+
+{
+  "phone_number": "+12345678901",
+  "password": "Password123!"
+}
+```
+
+**Request Fields:**
+- Provide either `email` OR `phone_number` (not both)
+- `password`: Required
+
 Response (200)
 ```json
 {
@@ -663,6 +706,9 @@ Response (200)
   "user": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "email": "user@example.com",
+    "phone_number": "+12345678901",
+    "first_name": "John",
+    "last_name": "Doe",
     "created_at": "2025-01-01T00:00:00.000Z"
   },
   "has_active_stack": true,
@@ -676,6 +722,7 @@ Response (200)
 - **Front-end logic**: If `has_active_stack` is `true` (or `needs_onboarding` is `false`), skip onboarding and go directly to the main app
 
 Errors
+- 400 if neither email nor phone_number provided, or both provided
 - 401 if credentials invalid
 
 #### POST /auth/apple
@@ -713,6 +760,242 @@ Response (200)
 
 Errors
 - 401 if Apple token invalid
+
+#### POST /auth/send-code
+Send a verification code via SMS or email for passwordless login or password reset.
+
+**Purpose**: Initiate passwordless login or password reset flow by sending a 6-digit verification code.
+
+**Authentication**: Not required (public endpoint)
+
+Request (Email)
+```http
+POST {{baseUrl}}auth/send-code
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "purpose": "login"
+}
+```
+
+Request (Phone Number)
+```http
+POST {{baseUrl}}auth/send-code
+Content-Type: application/json
+
+{
+  "phone_number": "+12345678901",
+  "purpose": "password_reset"
+}
+```
+
+**Request Fields:**
+- Provide either `email` OR `phone_number` (not both)
+- `purpose`: Required, either "login" or "password_reset"
+
+Response (200)
+```json
+{
+  "success": true,
+  "message": "Verification code sent via sms",
+  "delivery_method": "sms"
+}
+```
+
+**Response Fields:**
+- `success`: Boolean indicating if code was sent
+- `message`: Human-readable message
+- `delivery_method`: Either "sms" or "email"
+
+**How It Works:**
+1. Generates a cryptographically secure 6-digit code
+2. Invalidates any previous codes for the same email/phone and purpose
+3. Hashes the code with bcrypt before storing (like passwords)
+4. Stores in database with 1-minute expiration
+5. Sends code via AWS SNS (SMS) or SES (email)
+6. Code is single-use (marked as verified after first use)
+
+**Security Notes:**
+- Codes are hashed in database to prevent exposure in case of breach
+- 1-minute expiration minimizes attack window
+- Only the most recent code is valid (previous codes are automatically invalidated)
+- Codes are marked as verified after first use
+- User must exist for the provided email/phone number
+
+Errors
+- 400 if neither email nor phone_number provided, or both provided
+- 400 if invalid purpose
+- 404 if no user found with provided email/phone number
+- 500 if failed to send code
+
+#### POST /auth/verify-code
+Verify a code sent via `/auth/send-code` and complete the action (login or password reset verification).
+
+**Purpose**: Validate a verification code and either issue a JWT (for login) or confirm code validity (for password reset).
+
+**Authentication**: Not required (public endpoint)
+
+Request
+```http
+POST {{baseUrl}}auth/verify-code
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "code": "123456",
+  "purpose": "login"
+}
+```
+
+**Request Fields:**
+- Provide either `email` OR `phone_number` (not both)
+- `code`: Required, 6-digit verification code
+- `purpose`: Required, either "login" or "password_reset"
+
+Response for Login Purpose (200)
+```json
+{
+  "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "phone_number": "+12345678901",
+    "first_name": "John",
+    "last_name": "Doe",
+    "created_at": "2025-01-01T00:00:00.000Z"
+  },
+  "has_active_stack": true,
+  "needs_onboarding": false
+}
+```
+
+Response for Password Reset Purpose (200)
+```json
+{
+  "verified": true,
+  "message": "Code verified successfully. You may now reset your password."
+}
+```
+
+**Workflow:**
+- **For login purpose**: Issues a JWT token for immediate authentication
+- **For password_reset purpose**: Confirms code is valid; user should then call `/auth/reset-password`
+
+Errors
+- 400 if neither email nor phone_number provided, or both provided
+- 400 if code is not 6 digits
+- 400 if invalid purpose
+- 401 if code is invalid, expired, or already used
+- 404 if user not found
+
+#### POST /auth/reset-password
+Reset a user's password using a verified code.
+
+**Purpose**: Allow users to set a new password after verifying their identity with a code.
+
+**Authentication**: Not required (public endpoint)
+
+Request
+```http
+POST {{baseUrl}}auth/reset-password
+Content-Type: application/json
+
+{
+  "email": "user@example.com",
+  "code": "123456",
+  "new_password": "NewPassword123!"
+}
+```
+
+**Request Fields:**
+- Provide either `email` OR `phone_number` (not both)
+- `code`: Required, 6-digit verification code
+- `new_password`: Required, minimum 8 characters
+
+Response (200)
+```json
+{
+  "success": true,
+  "message": "Password reset successfully"
+}
+```
+
+**How It Works:**
+1. Verifies the code is valid for password_reset purpose
+2. Hashes the new password with bcrypt
+3. Updates the user's password_hash in database
+4. Invalidates all verification codes for this user
+
+**Security Notes:**
+- Code must be valid and not expired
+- New password is hashed with bcrypt before storage
+- All verification codes for the user are invalidated after reset
+
+Errors
+- 400 if neither email nor phone_number provided, or both provided
+- 400 if code is not 6 digits
+- 400 if new_password is less than 8 characters
+- 401 if code is invalid, expired, or already used
+- 404 if user not found
+
+---
+
+### User Profile
+
+#### PATCH /users/profile
+Update the authenticated user's profile information.
+
+**Purpose**: Allow users to update their first name, last name, and phone number.
+
+**Authentication**: Required (JWT Bearer token)
+
+Request
+```http
+PATCH {{baseUrl}}users/profile
+Authorization: Bearer {{jwt}}
+Content-Type: application/json
+
+{
+  "first_name": "Jane",
+  "last_name": "Smith",
+  "phone_number": "+19876543210"
+}
+```
+
+**Request Fields:**
+- At least one field must be provided
+- `first_name`: Optional, user's first name (or null to clear)
+- `last_name`: Optional, user's last name (or null to clear)
+- `phone_number`: Optional, phone number in E.164 format (or null to clear)
+
+Response (200)
+```json
+{
+  "user": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "email": "user@example.com",
+    "phone_number": "+19876543210",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "created_at": "2025-01-01T00:00:00.000Z"
+  },
+  "message": "Profile updated successfully"
+}
+```
+
+**Notes:**
+- Phone number must be unique across all users
+- Phone number must be in E.164 format (+12345678901)
+- Can set fields to null or empty string to clear them
+- Only updates fields that are provided in request
+
+Errors
+- 400 if no fields provided
+- 400 if phone number format is invalid
+- 401 if token missing or invalid
+- 404 if user not found
+- 409 if phone number already in use by another account
 
 ---
 
@@ -850,12 +1133,19 @@ Response (200)
 Requires Authorization header.
 
 #### POST /stack/generate
-Generates and stores a supplement stack for the current user based on their goals and preferences. Uses OpenAI GPT-4o-mini to intelligently select supplements and create personalized dosing schedules.
+**ASYNC OPERATION** - Queues a supplement stack generation job. Stack generation uses OpenAI GPT-5 Mini to intelligently analyze your goals and preferences, which takes 30-60 seconds. This endpoint returns immediately with a `job_id` that you use to check the status.
+
+**Workflow:**
+1. Call `POST /stack/generate` → Get `job_id`
+2. Poll `GET /stack/generate/status/{jobId}` every 2-3 seconds
+3. When `status: "completed"`, use `stack_id` to fetch the stack via `GET /stack/current`
+4. If `status: "failed"`, optionally retry via `POST /stack/generate/retry/{jobId}`
 
 **Important Behavior:**
 - Automatically deactivates any currently active stacks (sets `active=false`, `active_end=today`)
 - Sets the new stack as active (sets `active=true`, `active_start=today`)
 - Ensures only one stack is active at a time
+- Jobs expire after 30 days
 
 Request
 ```http
@@ -863,66 +1153,131 @@ POST {{baseUrl}}stack/generate
 Authorization: Bearer {{jwt}}
 ```
 
-Response (201)
+Response (202 Accepted)
 ```json
 {
-  "stack": {
-    "id": "550e8400-e29b-41d4-a716-446655440020",
-    "user_id": "550e8400-e29b-41d4-a716-446655440000",
-    "supplements": [
-      {
-        "supplement_id": "550e8400-e29b-41d4-a716-446655440100",
-        "name": "Creatine Monohydrate",
-        "dose": "5g",
-        "schedule": {
-          "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-          "times": ["morning"]
-        },
-        "tags": ["Build Muscle", "Increase Strength"],
-        "rationale": "Based on your goals to build muscle and increase strength, creatine is one of the most well-researched supplements for enhancing power output and supporting muscle growth.",
-        "active": true
-      },
-      {
-        "supplement_id": "550e8400-e29b-41d4-a716-446655440101",
-        "name": "Magnesium Glycinate",
-        "dose": "400mg",
-        "schedule": {
-          "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-          "times": ["evening"]
-        },
-        "tags": ["Improve Sleep Quality"],
-        "rationale": "Given your goal to improve sleep quality, magnesium glycinate is highly bioavailable and helps with sleep onset and quality without morning grogginess.",
-        "active": true
-      }
-    ],
-    "created_at": "2025-01-01T00:00:00.000Z",
-    "active": true,
-    "active_start": "2025-01-01",
-    "active_end": null
-  },
-  "message": "Stack generated successfully"
+  "job_id": "7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a",
+  "status": "pending",
+  "message": "Stack generation has been queued. Use the job_id to check status."
 }
 ```
 
-**Response Schema Notes:**
-- `supplements`: Array of `StackSupplement` objects
-  - `supplement_id`: UUID of the supplement from the supplements table
-  - `name`: Supplement name
-  - `dose`: Dosage recommendation (e.g., "5g", "400mg")
-  - `schedule`: When to take it
-    - `daysOfWeek`: Array of day abbreviations (Mon-Sun)
-    - `times`: Array of TimeOfDay values ("morning", "afternoon", "evening", "night")
-  - `tags`: Goal names this supplement addresses (from user's selected goals)
-  - `rationale`: Personalized 1-2 sentence explanation written directly to the user (e.g., "Based on your goal to build muscle, creatine is excellent for strength gains.")
-  - `active`: Whether this supplement is currently active in the user's routine
-- `active`: Whether this stack is currently active (automatically set to `true` on creation)
-- `active_start`: The date when this stack became active
-- `active_end`: The date when this stack was deactivated (null if currently active)
+**Response Fields:**
+- `job_id`: UUID to track this generation job
+- `status`: Always "pending" on initial response
+- `message`: Instruction to poll for status
 
 Errors
 - 400 if user has no goals set
 - 401 if token missing/invalid
 - 404 if user preferences not found
+
+---
+
+#### GET /stack/generate/status/{jobId}
+Check the status of an async stack generation job.
+
+**Authentication**: Required (JWT Bearer token - must be job owner)
+
+**Path Parameters**:
+- `jobId`: UUID returned from `POST /stack/generate`
+
+Request
+```http
+GET {{baseUrl}}stack/generate/status/7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a
+Authorization: Bearer {{jwt}}
+```
+
+Response (200 OK) - Pending
+```json
+{
+  "job_id": "7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a",
+  "status": "pending",
+  "created_at": "2025-01-01T12:00:00.000Z"
+}
+```
+
+Response (200 OK) - Processing
+```json
+{
+  "job_id": "7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a",
+  "status": "processing",
+  "created_at": "2025-01-01T12:00:00.000Z"
+}
+```
+
+Response (200 OK) - Completed
+```json
+{
+  "job_id": "7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a",
+  "status": "completed",
+  "stack_id": "550e8400-e29b-41d4-a716-446655440020",
+  "created_at": "2025-01-01T12:00:00.000Z",
+  "completed_at": "2025-01-01T12:00:45.000Z"
+}
+```
+
+Response (200 OK) - Failed
+```json
+{
+  "job_id": "7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a",
+  "status": "failed",
+  "error_message": "Failed to generate supplement recommendations. Status: 429, Message: Rate limit exceeded",
+  "created_at": "2025-01-01T12:00:00.000Z",
+  "completed_at": "2025-01-01T12:00:30.000Z"
+}
+```
+
+**Status Transitions:**
+- `pending` → Job queued, waiting to process
+- `processing` → OpenAI is generating recommendations
+- `completed` → Success, `stack_id` available
+- `failed` → Error occurred, `error_message` available
+
+**Polling Recommendations:**
+- Poll every 2-3 seconds
+- Expected completion time: 30-60 seconds
+- Stop polling when status is `completed` or `failed`
+
+Errors
+- 401 if token missing/invalid
+- 404 if job not found or doesn't belong to user
+
+---
+
+#### POST /stack/generate/retry/{jobId}
+Retry a failed stack generation job. Only works for jobs with `status: "failed"`.
+
+**Authentication**: Required (JWT Bearer token - must be job owner)
+
+**Path Parameters**:
+- `jobId`: UUID of the failed job
+
+Request
+```http
+POST {{baseUrl}}stack/generate/retry/7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a
+Authorization: Bearer {{jwt}}
+```
+
+Response (200 OK)
+```json
+{
+  "job_id": "7a3c8e12-9f4d-4b2a-a1e5-3d6c9b8f2e4a",
+  "status": "pending",
+  "message": "Job has been queued for retry"
+}
+```
+
+**Behavior:**
+- Resets job status to `pending`
+- Clears `error_message`
+- Re-queues the job for processing
+- Continue polling `/stack/generate/status/{jobId}` as usual
+
+Errors
+- 400 if job status is not `failed` (can't retry pending/processing/completed jobs)
+- 401 if token missing/invalid
+- 404 if job not found or doesn't belong to user
 
 #### GET /stack/current
 Fetch the most recently created stack for the current user.
@@ -1343,239 +1698,4 @@ Errors
 - Environment: `postman/StackWise.postman_environment.json`
 - Set `baseUrl` to your API Gateway URL. Use Signup/Login to populate `{{jwt}}` automatically via test scripts.
 
-
-
-# Schema Updates - StackWise API
-
-This document tracks recent schema changes that affect the front-end application. Use this alongside the API_README.md to understand what has changed in the API responses.
-
----
-
-## Update 1: Removed `purpose` Field from Stack Supplements (October 2025)
-
-### What Changed
-
-The `StackSupplement` object in the `stacks` table's `supplements` JSONB column has been updated.
-
-**Before:**
-```typescript
-{
-  supplement_id: string;
-  dose: string;
-  name: string;
-  purpose: string;        // ← REMOVED
-  schedule: SupplementSchedule;
-  tags: Goal[];
-  rationale: string;      // ← ENHANCED
-  active: boolean;
-}
-```
-
-**After:**
-```typescript
-{
-  supplement_id: string;
-  dose: string;
-  name: string;
-  schedule: SupplementSchedule;
-  tags: Goal[];
-  rationale: string;      // Now contains personalized explanation
-  active: boolean;
-}
-```
-
-### Why This Changed
-
-- **Removed**: `purpose` field (was duplicate of rationale)
-- **Enhanced**: `rationale` now contains 1-2 sentence personalized explanation written in second person
-
-### Rationale Field Enhancement
-
-The `rationale` field is now AI-generated text that:
-- Speaks directly to the user (second person: "you", "your")
-- Explains WHY this supplement was selected for THIS specific user
-- References user's goals and profile
-
-**Example rationale text:**
-```
-"Based on your goal to build muscle and improve gym performance, creatine is an excellent choice for increasing strength and power output."
-```
-
-### Affected Endpoints
-
-#### POST /stack/generate
-**Response changed:**
-```json
-{
-  "stack": {
-    "supplements": [
-      {
-        "supplement_id": "uuid",
-        "name": "Creatine Monohydrate",
-        "dose": "5g",
-        "schedule": {
-          "daysOfWeek": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-          "times": ["morning"]
-        },
-        "tags": ["Build Muscle", "Increase Strength"],
-        "rationale": "Based on your goals to build muscle and increase strength, creatine is one of the most well-researched supplements for enhancing power output and supporting muscle growth.",
-        "active": true
-      }
-    ]
-  }
-}
-```
-
-**NoteMenu`purpose` field is no longer present in the response.
-
-#### GET /stack/current
-Same change - `purpose` field removed from each supplement object.
-
-#### GET /analytics/weekly-intake
-The `stack_intake_data` items don't include full supplement details, so this endpoint is unaffected.
-
-### Front-End Migration
-
-**Swift Model Update:**
-```swift
-struct StackSupplement: Codable {
-    let supplementId: String
-    let name: String
-    let dose: String
-    // let purpose: String  // ← REMOVE THIS
-    let schedule: SupplementSchedule
-    let tags: [String]
-    let rationale: String  // Keep this, now has personalized content
-    let active: Bool
-}
-```
-
-**UI Update:**
-```swift
-// Before:
-Text(supplement.purpose)  // Generic purpose
-
-// After:
-Text(supplement.rationale)  // Personalized "why this for you"
-```
-
-### Database Schema
-
-The `stacks` table's `supplements` JSONB column stores these objects. No database migration needed - it's just JSON data. Existing stacks will have both fields, new stacks will only have `rationale`.
-
-### Backward Compatibility
-
-If you have locally cached stacks with the old schema:
-- Old stacks will have both `purpose` and `rationale` (ignore `purpose`)
-- New stacks will only have `rationale`
-- Your Swift model can handle this by making `purpose` optional during transition, then removing it
-
----
-
-## Update 2: Enhanced Supplement Descriptions (October 2025)
-
-### What Changed
-
-The `supplements` table schema has been updated with more detailed description fields.
-
-**Before:**
-```sql
-CREATE TABLE supplements (
-  id UUID,
-  name TEXT,
-  purpose TEXT,           -- ← REMOVED
-  ...
-);
-```
-
-**After:**
-```sql
-CREATE TABLE supplements (
-  id UUID,
-  name TEXT,
-  purpose_short TEXT,     -- ← NEW: 1 sentence overview
-  purpose_long TEXT,      -- ← NEW: 3-5 sentence overview
-  scientific_function TEXT, -- ← NEW: Scientific explanation
-  ...
-);
-```
-
-### Why This Changed
-
-- **More granularity**: Apps can choose which level of detail to display
-- **User education**: `scientific_function` helps users understand HOW supplements work
-- **Better UX**: Short descriptions for lists, long descriptions for detail views
-
-### New Fields Explained
-
-1. **purpose_short** (1 sentence)
-   - Quick overview for list views
-   - Example: "Supports muscle strength, power output, and cognitive function"
-
-2. **purpose_long** (3-5 sentences)
-   - Detailed overview for detail/info views
-   - Explains benefits and use cases
-   - Example: "Creatine monohydrate is one of the most researched supplements for athletic performance. It enhances strength, increases muscle mass..."
-
-3. **scientific_function** (3-5 sentences)
-   - Technical explanation of mechanism of action
-   - For users who want to understand the science
-   - Example: "Creatine increases phosphocreatine stores in muscles, enabling rapid ATP regeneration..."
-
-### Affected Endpoints
-
-#### None (supplements table is reference data)
-
-The supplements table is used internally by the API to generate stacks, but supplement details are not directly exposed to the front-end through any current endpoints.
-
-**Note**: If you add an endpoint to browse/search supplements in the future, it will include these new fields.
-
-### Database Migration
-
-**Migration**: `migrations/0004_update_supplement_descriptions.sql`
-
-This migration:
-1. Adds three new TEXT columns
-2. Populates data for all 5 existing supplements
-3. Drops the old `purpose` column
-
-### Front-End Impact
-
-**No immediate action required** - This change is internal to the API.
-
-However, if you later add features to display supplement information (e.g., "Learn More" about a supplement), you can query these fields.
-
-### Sample Data
-
-**Creatine Monohydrate:**
-- purpose_short: "Supports muscle strength, power output, and cognitive function"
-- purpose_long: "Creatine monohydrate is one of the most researched supplements for athletic performance. It enhances strength, increases muscle mass, improves high-intensity exercise performance, and may support cognitive function and brain health."
-- scientific_function: "Creatine increases phosphocreatine stores in muscles, enabling rapid ATP regeneration during high-intensity activities..."
-
----
-
-## Future Updates
-
-Additional schema changes will be documented here as they occur.
-
-### Template for Future Updates:
-
-```markdown
-## Update N: [Title] (Date)
-
-### What Changed
-- Describe the change
-
-### Why This Changed
-- Reason for the change
-
-### Affected Endpoints
-- List endpoints with before/after examples
-
-### Front-End Migration
-- Code changes needed
-
-### Backward Compatibility
-- How to handle transition
-```
 

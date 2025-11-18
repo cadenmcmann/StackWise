@@ -77,15 +77,35 @@ public class IntakeLogManager: ObservableObject {
     
     /// Sync local state with API data (call when loading new data)
     public func syncWithAPIData(_ weeklyData: WeeklyIntakeResponse) {
-        // Clear local state for data we're about to sync
-        localIntakeState.removeAll()
+        // Preserve pending changes - don't overwrite local state for items we're about to send
+        let pendingKeys = Set(pendingChanges.keys)
         
-        // Populate local state with API data
+        // Update local state with API data, but preserve pending changes
         for dayData in weeklyData.weekData {
             for supplement in dayData.stackIntakeData {
                 let key = "\(dayData.date)|\(supplement.supplementId)|\(supplement.time)"
-                localIntakeState[key] = supplement.taken
+                
+                // Only update if we don't have a pending change for this item
+                if !pendingKeys.contains(key) {
+                    localIntakeState[key] = supplement.taken
+                }
             }
+        }
+        
+        // Remove any stale local state that's not in API data and not pending
+        // This prevents memory leaks from old data
+        let apiKeys = Set(weeklyData.weekData.flatMap { dayData in
+            dayData.stackIntakeData.map { supplement in
+                "\(dayData.date)|\(supplement.supplementId)|\(supplement.time)"
+            }
+        })
+        
+        let keysToRemove = localIntakeState.keys.filter { key in
+            !apiKeys.contains(key) && !pendingKeys.contains(key)
+        }
+        
+        for key in keysToRemove {
+            localIntakeState.removeValue(forKey: key)
         }
     }
     

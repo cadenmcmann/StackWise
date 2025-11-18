@@ -18,12 +18,13 @@ public class OnboardingViewModel: ObservableObject {
     @Published var showSignupScreen = false
     @Published var showAuthError = false
     @Published var authErrorMessage = ""
+    @Published var showPasswordReset = false
     
     // Splash & Consent
     @Published var isOver18 = false
     @Published var acceptsDisclaimer = false
     
-    private let container: DIContainer
+    let container: DIContainer
     
     // MARK: - OnboardingStep
     public enum OnboardingStep: Int, CaseIterable {
@@ -57,6 +58,20 @@ public class OnboardingViewModel: ObservableObject {
     // MARK: - Initialization
     public init(container: DIContainer) {
         self.container = container
+        
+        // If this is a remix flow, pre-fill with existing preferences
+        if container.isRemixFlow {
+            // Pre-fill intake if available
+            if let remixIntake = container.remixIntake {
+                self.intake = remixIntake
+            }
+            // Skip welcome step since user is already authenticated
+            self.currentStep = .splash
+            self.isAuthenticated = true
+            // Pre-check consent boxes since user has already done this
+            self.isOver18 = true
+            self.acceptsDisclaimer = true
+        }
     }
     
     // MARK: - Navigation
@@ -147,7 +162,14 @@ public class OnboardingViewModel: ObservableObject {
             // Mark onboarding as complete
             container.onboardingCompleted = true
             
+            // Clean up remix flow flags if this was a remix
+            if container.isRemixFlow {
+                container.isRemixFlow = false
+                container.remixIntake = nil
+            }
+            
         } catch {
+            print("❌ Failed to generate stack: \(error)")
             if let networkError = error as? NetworkError {
                 self.error = "Failed to generate your stack: \(networkError.localizedDescription)"
             } else {
@@ -200,13 +222,53 @@ public class OnboardingViewModel: ObservableObject {
         isLoading = false
     }
     
-    public func signup(name: String, email: String, password: String) async {
+    public func loginPhone(phoneNumber: String, password: String) async {
         isLoading = true
         authErrorMessage = ""
         showAuthError = false
         
         do {
-            let user = try await container.authService.signUpEmail(name: name, email: email, password: password)
+            let user = try await container.authService.signInPhone(phoneNumber: phoneNumber, password: password)
+            container.currentUser = user
+            isAuthenticated = true
+            
+            // Check if user has completed onboarding by trying to fetch their stack
+            await container.loadCurrentStack()
+            if container.currentStack != nil {
+                // User has a stack, they've completed onboarding
+                container.onboardingCompleted = true
+            } else {
+                // Move to next step in onboarding
+                withAnimation(Theme.Animation.standard) {
+                    currentStep = .splash
+                }
+            }
+        } catch {
+            if let networkError = error as? NetworkError {
+                authErrorMessage = networkError.localizedDescription
+            } else {
+                authErrorMessage = "Failed to log in. Please check your credentials and try again."
+            }
+            showAuthError = true
+        }
+        
+        isLoading = false
+    }
+    
+    public func signup(name: String, email: String, password: String, firstName: String? = nil, lastName: String? = nil, phoneNumber: String? = nil) async {
+        isLoading = true
+        authErrorMessage = ""
+        showAuthError = false
+        
+        do {
+            let user = try await container.authService.signUpEmail(
+                name: name, 
+                email: email, 
+                password: password,
+                firstName: firstName,
+                lastName: lastName,
+                phoneNumber: phoneNumber
+            )
             container.currentUser = user
             isAuthenticated = true
             
@@ -244,7 +306,7 @@ public class OnboardingViewModel: ObservableObject {
                 sex: .other,
                 height: 170,
                 weight: 70,
-                stimulantTolerance: .medium,
+                stimulantTolerance: .moderate,
                 budgetPerMonth: 100
             )
             

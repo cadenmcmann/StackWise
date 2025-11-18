@@ -5,22 +5,86 @@ import Foundation
 public struct SignupRequest: Codable {
     let email: String
     let password: String
+    let firstName: String?
+    let lastName: String?
+    let phoneNumber: String?
 }
 
 public struct LoginRequest: Codable {
-    let email: String
+    let email: String?
+    let phoneNumber: String?
     let password: String
 }
 
 public struct AuthResponse: Codable {
-    let token: String
-    let user: APIUser
+    public let token: String
+    public let user: APIUser
+    public let hasActiveStack: Bool
+    public let needsOnboarding: Bool
 }
 
 public struct APIUser: Codable {
-    let id: String
-    let email: String
-    let createdAt: String?
+    public let id: String
+    public let email: String?
+    public let phoneNumber: String?
+    public let firstName: String?
+    public let lastName: String?
+    public let createdAt: String?
+}
+
+// MARK: - Verification Code Models
+
+public struct SendCodeRequest: Codable {
+    let email: String?
+    let phoneNumber: String?
+    let purpose: String
+}
+
+public struct SendCodeResponse: Codable {
+    public let success: Bool
+    public let message: String
+    public let deliveryMethod: String
+}
+
+public struct VerifyCodeRequest: Codable {
+    let email: String?
+    let phoneNumber: String?
+    let code: String
+    let purpose: String
+}
+
+// Using AuthResponse for login verification
+// Separate response for password reset verification
+public struct VerifyCodeResetResponse: Codable {
+    public let verified: Bool
+    public let message: String
+}
+
+// MARK: - Password Reset Models
+
+public struct ResetPasswordRequest: Codable {
+    let email: String?
+    let phoneNumber: String?
+    let code: String
+    let newPassword: String
+}
+
+public struct ResetPasswordResponse: Codable {
+    public let success: Bool
+    public let message: String
+}
+
+// MARK: - Profile Update Models
+
+public struct UpdateProfileRequest: Codable {
+    let firstName: String?
+    let lastName: String?
+    let phoneNumber: String?
+}
+
+public struct UpdateProfileResponse: Codable {
+    public let user: APIUser
+    public let message: String
 }
 
 // MARK: - Preferences Models
@@ -44,14 +108,14 @@ public struct PreferencesResponse: Codable {
 }
 
 public struct APIPreferences: Codable {
-    let id: String
+    let id: String?
     let userId: String
     let goals: [String]
     let age: Int?
     let sex: String?
     let heightCm: Int?
     let weightKg: Int?
-    let bodyFatPct: Double?
+    let bodyFatPct: String?  // API returns as string "18.00"
     let stimulantTolerance: String?
     let budgetUsd: Int?
     let dietaryPrefs: [String]
@@ -101,6 +165,36 @@ public struct APIStackSupplement: Codable {
 public struct APISupplementSchedule: Codable {
     let daysOfWeek: [String]
     let times: [String]
+}
+
+// MARK: - Stack Generation Job Models
+
+public struct GenerateStackJobResponse: Codable {
+    let jobId: String
+    let status: String
+    let message: String
+}
+
+public struct StackJobStatusResponse: Codable {
+    let jobId: String
+    let status: String
+    let stackId: String?
+    let errorMessage: String?
+    let createdAt: String
+    let completedAt: String?
+}
+
+public struct RetryJobResponse: Codable {
+    let jobId: String
+    let status: String
+    let message: String
+}
+
+public enum StackJobStatus {
+    case pending
+    case processing
+    case completed(stackId: String)
+    case failed(errorMessage: String)
 }
 
 // MARK: - Toggle Supplement Models
@@ -223,7 +317,7 @@ extension APIPreferences {
             sex: mapSex(sex),
             height: Double(heightCm ?? 170),
             weight: Double(weightKg ?? 70),
-            bodyFat: bodyFatPct,
+            bodyFat: bodyFatPct.flatMap { Double($0) },  // Convert string to Double
             stimulantTolerance: mapStimulantTolerance(stimulantTolerance),
             budgetPerMonth: Double(budgetUsd ?? 100),
             dietaryPreferences: Set(dietaryPrefs.compactMap { pref in
@@ -246,11 +340,13 @@ extension APIPreferences {
     }
     
     private func mapStimulantTolerance(_ tolerance: String?) -> User.StimulantTolerance {
-        guard let tolerance = tolerance else { return .medium }
+        guard let tolerance = tolerance else { return .moderate }
         switch tolerance.lowercased() {
+        case "none": return .none
         case "low": return .low
+        case "moderate": return .moderate
         case "high": return .high
-        default: return .medium
+        default: return .moderate
         }
     }
 }
@@ -307,5 +403,62 @@ extension APIStack {
         // API returns all supplements in one array, we'll put them all in minimal
         // The Stack view will display all of them
         return Stack(id: id, minimal: allSupplements, addons: [])
+    }
+}
+
+extension APIUser {
+    func toUser(withPreferences preferences: APIPreferences? = nil) -> User {
+        // Create a user with API fields
+        var user = User(
+            id: id,
+            email: email,
+            phoneNumber: phoneNumber,
+            firstName: firstName,
+            lastName: lastName,
+            createdAt: createdAt.flatMap { ISO8601DateFormatter().date(from: $0) },
+            // Default values for required preference fields
+            age: 25,
+            sex: .other,
+            height: 170,
+            weight: 70,
+            stimulantTolerance: .moderate,
+            budgetPerMonth: 100
+        )
+        
+        // If preferences are provided, use them to update the user
+        if let preferences = preferences {
+            user.age = preferences.age ?? user.age
+            user.sex = mapSex(preferences.sex)
+            user.height = Double(preferences.heightCm ?? Int(user.height))
+            user.weight = Double(preferences.weightKg ?? Int(user.weight))
+            user.bodyFat = preferences.bodyFatPct.flatMap { Double($0) }  // Convert string to Double
+            user.stimulantTolerance = mapStimulantTolerance(preferences.stimulantTolerance)
+            user.budgetPerMonth = Double(preferences.budgetUsd ?? Int(user.budgetPerMonth))
+            user.dietaryPreferences = Set(preferences.dietaryPrefs.compactMap { pref in
+                DietaryPreference.allCases.first { $0.rawValue.lowercased() == pref.lowercased() }
+            })
+        }
+        
+        return user
+    }
+    
+    private func mapSex(_ sex: String?) -> User.Sex {
+        guard let sex = sex else { return .other }
+        switch sex.lowercased() {
+        case "male": return .male
+        case "female": return .female
+        default: return .other
+        }
+    }
+    
+    private func mapStimulantTolerance(_ tolerance: String?) -> User.StimulantTolerance {
+        guard let tolerance = tolerance else { return .moderate }
+        switch tolerance.lowercased() {
+        case "none": return .none
+        case "low": return .low
+        case "moderate": return .moderate
+        case "high": return .high
+        default: return .moderate
+        }
     }
 }
