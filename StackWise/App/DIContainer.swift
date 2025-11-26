@@ -9,10 +9,8 @@ public class DIContainer: ObservableObject {
     // MARK: - Services
     private(set) var authService: AuthService
     private(set) var recommendationService: RecommendationService
-    private(set) var scheduleService: ScheduleService
     private(set) var trackingService: TrackingService
     private(set) var chatService: ChatService
-    private(set) var exportService: ExportService
     private(set) var goalsService: GoalsService
     private(set) var preferencesService: PreferencesService
     
@@ -33,10 +31,8 @@ public class DIContainer: ObservableObject {
         Services(
             authService: authService,
             recommendationService: recommendationService,
-            scheduleService: scheduleService,
             trackingService: trackingService,
             chatService: chatService,
-            exportService: exportService,
             goalsService: goalsService,
             preferencesService: preferencesService
         )
@@ -51,20 +47,16 @@ public class DIContainer: ObservableObject {
             // Initialize with mock services
             self.authService = MockAuthService()
             self.recommendationService = MockRecommendationService()
-            self.scheduleService = MockScheduleService()
             self.trackingService = MockTrackingService()
             self.chatService = MockChatService()
-            self.exportService = MockExportService()
             self.goalsService = MockGoalsService()
             self.preferencesService = MockPreferencesService()
         } else {
             // Initialize with real services
             self.authService = RealAuthService()
             self.recommendationService = RealRecommendationService()
-            self.scheduleService = MockScheduleService() // Still mocked - not in API yet
-            self.trackingService = RealTrackingService() // Now using real API!
-            self.chatService = RealChatService() // Now using real API!
-            self.exportService = MockExportService() // Still mocked - not in API yet
+            self.trackingService = RealTrackingService()
+            self.chatService = RealChatService()
             self.goalsService = RealGoalsService()
             self.preferencesService = RealPreferencesService()
         }
@@ -259,10 +251,8 @@ public extension EnvironmentValues {
 public struct Services {
     public let authService: AuthService
     public let recommendationService: RecommendationService
-    public let scheduleService: ScheduleService
     public let trackingService: TrackingService
     public let chatService: ChatService
-    public let exportService: ExportService
     public let goalsService: GoalsService
     public let preferencesService: PreferencesService
 }

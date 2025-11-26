@@ -9,7 +9,7 @@ public class ProfileViewModel: ObservableObject {
     @Published var athleteMode = false
     @Published var visibleSupplementIds: Set<String> = []
     @Published var showDeleteAccountAlert = false
-    @Published var showExportSuccess = false
+    @Published var showSignOutAlert = false
     @Published var showEditProfile = false
     @Published var showPasswordReset = false
     @Published var isLoading = false
@@ -66,44 +66,6 @@ public class ProfileViewModel: ObservableObject {
         container.currentUser = user
     }
     
-    func exportPDF() async {
-        guard let stack = stack, let user = user else { return }
-        
-        isLoading = true
-        
-        do {
-            let url = try await container.exportService.generateRegimenPDF(
-                stack: stack,
-                user: user
-            )
-            // In a real app, you'd present a share sheet here
-            showExportSuccess = true
-            print("PDF exported to: \(url)")
-        } catch {
-            print("Failed to export PDF: \(error)")
-        }
-        
-        isLoading = false
-    }
-    
-    func exportCalendar() async {
-        isLoading = true
-        
-        do {
-            let reminders = try await container.scheduleService.getReminders()
-            let url = try await container.exportService.generateCalendarICS(
-                reminders: reminders
-            )
-            // In a real app, you'd present a share sheet here
-            showExportSuccess = true
-            print("Calendar exported to: \(url)")
-        } catch {
-            print("Failed to export calendar: \(error)")
-        }
-        
-        isLoading = false
-    }
-    
     func deleteAccount() async {
         // Clear all data
         do {
@@ -114,10 +76,12 @@ public class ProfileViewModel: ObservableObject {
     }
     
     func signOut() async {
+        isLoading = true
         do {
             try await container.signOut()
         } catch {
             print("Failed to sign out: \(error)")
         }
+        isLoading = false
     }
 }

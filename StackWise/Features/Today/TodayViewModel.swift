@@ -15,7 +15,6 @@ public class TodayViewModel: ObservableObject {
     @Published var refreshTrigger = false // Used to force UI updates
     
     private let container: DIContainer
-    private let scheduleService: ScheduleService
     private let trackingService: TrackingService
     private var cancellables = Set<AnyCancellable>()
     
@@ -47,7 +46,6 @@ public class TodayViewModel: ObservableObject {
     
     public init(container: DIContainer) {
         self.container = container
-        self.scheduleService = container.scheduleService
         self.trackingService = container.trackingService
         
         // Observe IntakeLogManager changes to trigger UI updates
@@ -73,12 +71,8 @@ public class TodayViewModel: ObservableObject {
         if let stack = container.currentStack {
             reminders = generateRemindersFromStack(stack)
         } else {
-            // Try to load from service (mock or real)
-            do {
-                reminders = try await scheduleService.getReminders()
-            } catch {
-                print("Failed to load reminders: \(error)")
-            }
+            // No stack, no reminders
+            reminders = []
         }
         
         isLoading = false
@@ -250,19 +244,12 @@ public class TodayViewModel: ObservableObject {
     }
     
     func updateReminder(_ reminder: Reminder) async {
-        do {
-            try await scheduleService.setReminder(reminder)
-            await loadReminders()
-            
-            // Reschedule notification if enabled
-            if reminder.enabled {
-                scheduleNotification(for: reminder)
-            } else {
-                // Cancel notification
-                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [reminder.id])
-            }
-        } catch {
-            print("Failed to update reminder: \(error)")
+        // Reschedule notification if enabled
+        if reminder.enabled {
+            scheduleNotification(for: reminder)
+        } else {
+            // Cancel notification
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [reminder.id])
         }
     }
     

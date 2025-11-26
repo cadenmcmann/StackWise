@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - StackView
 public struct StackView: View {
     @StateObject private var viewModel: StackViewModel
-    @State private var showExportSuccess = false
     @State private var selectedSupplement: Supplement?
     @State private var showInactiveSupplements = false
     @Environment(\.container) private var container
@@ -92,18 +91,6 @@ public struct StackView: View {
                         .font(Theme.Typography.titleM)
                         .fontWeight(.semibold)
                 }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                    Task {
-                        if await viewModel.exportStack() != nil {
-                            showExportSuccess = true
-                        }
-                    }
-                    } label: {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                }
             }
             .alert("Remix Your Stack?", isPresented: $viewModel.showRemixConfirmation) {
                 Button("Cancel", role: .cancel) { }
@@ -126,11 +113,6 @@ public struct StackView: View {
             )
         }
         }
-        .toast(
-            isShowing: $showExportSuccess,
-            message: "Stack exported successfully",
-            type: .success
-        )
     }
 }
 

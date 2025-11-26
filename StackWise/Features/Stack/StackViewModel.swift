@@ -46,21 +46,6 @@ public class StackViewModel: ObservableObject {
         }
     }
     
-    func exportStack() async -> URL? {
-        guard let stack = stack,
-              let user = container.currentUser else { return nil }
-        
-        do {
-            return try await container.exportService.generateRegimenPDF(
-                stack: stack,
-                user: user
-            )
-        } catch {
-            print("Failed to export stack: \(error)")
-            return nil
-        }
-    }
-    
     func loadStack() async {
         isLoading = true
         await container.loadCurrentStack()

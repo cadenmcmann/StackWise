@@ -16,6 +16,12 @@ public struct LoginRequest: Codable {
     let password: String
 }
 
+public struct AppleSignInRequest: Encodable {
+    let identityToken: String
+    let authorizationCode: String?
+    let email: String?
+}
+
 public struct AuthResponse: Codable {
     public let token: String
     public let user: APIUser

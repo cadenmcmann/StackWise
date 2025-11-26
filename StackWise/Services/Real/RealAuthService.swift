@@ -1,9 +1,11 @@
 import Foundation
+import AuthenticationServices
 
 // MARK: - RealAuthService
 public class RealAuthService: AuthService {
     private let networkManager = NetworkManager.shared
     private var _currentUser: User?
+    private let appleSignInManager = AppleSignInManager()
     
     public init() {
         // Check if we have a stored user
@@ -13,8 +15,54 @@ public class RealAuthService: AuthService {
     // MARK: - Apple Sign In
     
     public func signInApple() async throws -> User {
-        // TODO: Implement real Apple Sign In
-        throw NetworkError.apiError(message: "Apple Sign In not yet implemented", statusCode: 501)
+        // Get Apple credentials using AppleSignInManager
+        let credentials = try await appleSignInManager.startSignIn()
+        
+        // Create request for backend API
+        let request = AppleSignInRequest(
+            identityToken: credentials.identityToken,
+            authorizationCode: credentials.authorizationCode,
+            email: credentials.email
+        )
+        
+        // Encode with plain JSONEncoder (no snake_case conversion)
+        // The Apple auth endpoint expects camelCase keys
+        let encoder = JSONEncoder()
+        let rawBodyData = try encoder.encode(request)
+        
+        do {
+            let response = try await networkManager.request(
+                endpoint: "auth/apple",
+                method: "POST",
+                rawBodyData: rawBodyData,
+                requiresAuth: false,
+                responseType: AuthResponse.self
+            )
+            
+            // Store the token
+            networkManager.setAuthToken(response.token)
+            
+            // Create user from API response and fetch preferences if available
+            var user = response.user.toUser()
+            
+            // Try to fetch preferences
+            if let preferencesResponse = try? await networkManager.request(
+                endpoint: "preferences",
+                method: "GET",
+                requiresAuth: true,
+                responseType: PreferencesResponse.self
+            ) {
+                user = response.user.toUser(withPreferences: preferencesResponse.preferences)
+            }
+            
+            _currentUser = user
+            storeUser(user)
+            
+            return user
+        } catch {
+            print("Apple Sign In error: \(error)")
+            throw error
+        }
     }
     
     // MARK: - Email/Phone + Password Authentication

@@ -65,15 +65,20 @@ public struct ProfileView: View {
             } message: {
                 Text("Are you sure you want to delete your account? This action cannot be undone.")
             }
+            .alert("Sign Out", isPresented: $viewModel.showSignOutAlert) {
+                Button("Sign Out", role: .destructive) {
+                    Task {
+                        await viewModel.signOut()
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("Are you sure you want to sign out?")
+            }
         }
         .onAppear {
             viewModel.loadUserData()
         }
-        .toast(
-            isShowing: $viewModel.showExportSuccess,
-            message: "Export successful",
-            type: .success
-        )
     }
 }
 
@@ -286,9 +291,7 @@ struct AccountActionsSection: View {
             
             VStack(spacing: Theme.Spacing.sm) {
                 Button {
-                    Task {
-                        await viewModel.signOut()
-                    }
+                    viewModel.showSignOutAlert = true
                 } label: {
                     HStack {
                         Image(systemName: "rectangle.portrait.and.arrow.right")

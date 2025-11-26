@@ -4,10 +4,10 @@ import SwiftUI
 struct BasicsScreen: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @State private var ageText = ""
-    @State private var heightText = ""
-    @State private var weightText = ""
     @State private var bodyFatText = ""
     @State private var selectedDietaryPrefs: Set<String> = []
+    @State private var weightUnit: WeightUnit = .lbs
+    @State private var heightUnit: HeightUnit = .imperial
     
     var body: some View {
         VStack(spacing: 0) {
@@ -64,21 +64,17 @@ struct BasicsScreen: View {
                             .frame(maxWidth: .infinity)
                         }
                         
-                        HStack(spacing: Theme.Spacing.md) {
-                            CustomTextField(
-                                title: "Height (cm)",
-                                text: $heightText,
-                                placeholder: "170",
-                                keyboardType: .decimalPad
-                            )
-                            
-                            CustomTextField(
-                                title: "Weight (kg)",
-                                text: $weightText,
-                                placeholder: "70",
-                                keyboardType: .decimalPad
-                            )
-                        }
+                        HeightInputField(
+                            title: "Height",
+                            heightCm: $viewModel.intake.basics.height,
+                            unit: $heightUnit
+                        )
+                        
+                        WeightInputField(
+                            title: "Weight",
+                            weightKg: $viewModel.intake.basics.weight,
+                            unit: $weightUnit
+                        )
                         
                         CustomTextField(
                             title: "Body Fat % (optional)",
@@ -134,6 +130,7 @@ struct BasicsScreen: View {
                 }
                 .padding(Theme.Spacing.gutter)
             }
+            .scrollDismissesKeyboard(.interactively)
             
             // Footer buttons
             HStack(spacing: Theme.Spacing.md) {
@@ -155,6 +152,14 @@ struct BasicsScreen: View {
             .padding(Theme.Spacing.gutter)
         }
         .background(Theme.Colors.surface)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                }
+            }
+        }
         .onAppear {
             loadExistingData()
         }
@@ -162,8 +167,6 @@ struct BasicsScreen: View {
     
     private func loadExistingData() {
         ageText = viewModel.intake.basics.age > 0 ? "\(viewModel.intake.basics.age)" : ""
-        heightText = viewModel.intake.basics.height > 0 ? "\(Int(viewModel.intake.basics.height))" : ""
-        weightText = viewModel.intake.basics.weight > 0 ? "\(Int(viewModel.intake.basics.weight))" : ""
         if let bodyFat = viewModel.intake.basics.bodyFat {
             bodyFatText = "\(Int(bodyFat))"
         }
@@ -171,9 +174,7 @@ struct BasicsScreen: View {
     }
     
     private func saveBasics() {
-        viewModel.intake.basics.age = Int(ageText) ?? 25
-        viewModel.intake.basics.height = Double(heightText) ?? 170
-        viewModel.intake.basics.weight = Double(weightText) ?? 70
+        viewModel.intake.basics.age = Int(ageText) ?? 0
         viewModel.intake.basics.bodyFat = bodyFatText.isEmpty ? nil : Double(bodyFatText)
         viewModel.intake.basics.dietaryPreferences = Set(selectedDietaryPrefs.compactMap { DietaryPreference(rawValue: $0) })
     }

@@ -130,6 +130,11 @@ public class OnboardingViewModel: ObservableObject {
         }
     }
     
+    public func skipGoals() {
+        intake.goals = []
+        goToStep(.basics)
+    }
+    
     // MARK: - Business Logic
     
     private func hasHardStopRisk() -> Bool {
@@ -298,27 +303,37 @@ public class OnboardingViewModel: ObservableObject {
         showAuthError = false
         
         do {
-            // Mock Sign in with Apple
-            try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second delay to simulate network
-            
-            let user = User(
-                age: 25,
-                sex: .other,
-                height: 170,
-                weight: 70,
-                stimulantTolerance: .moderate,
-                budgetPerMonth: 100
-            )
-            
+            let user = try await container.authService.signInApple()
             container.currentUser = user
             isAuthenticated = true
             
-            // Move to next step
-            withAnimation(Theme.Animation.standard) {
-                currentStep = .splash
+            // Check if user has completed onboarding by trying to fetch their stack
+            await container.loadCurrentStack()
+            if container.currentStack != nil {
+                // User has a stack, they've completed onboarding
+                container.onboardingCompleted = true
+            } else {
+                // Move to next step in onboarding
+                withAnimation(Theme.Animation.standard) {
+                    currentStep = .splash
+                }
+            }
+        } catch let error as AppleSignInError {
+            // Handle specific Apple Sign In errors
+            switch error {
+            case .cancelled:
+                // User cancelled, don't show error
+                break
+            default:
+                authErrorMessage = error.localizedDescription
+                showAuthError = true
             }
         } catch {
-            authErrorMessage = "Failed to sign in with Apple. Please try again."
+            if let networkError = error as? NetworkError {
+                authErrorMessage = networkError.localizedDescription
+            } else {
+                authErrorMessage = "Failed to sign in with Apple. Please try again."
+            }
             showAuthError = true
         }
         

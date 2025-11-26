@@ -726,7 +726,7 @@ Errors
 - 401 if credentials invalid
 
 #### POST /auth/apple
-Verifies an Apple identity token; upserts a user and returns a JWT.
+Validates an Apple `identityToken` using Apple's JWKS, links it to an existing user (by `apple_sub` or email), creates a user if needed, and returns a StackWise JWT.
 
 Request
 ```http
@@ -735,9 +735,15 @@ Content-Type: application/json
 
 {
   "identityToken": "<apple_identity_token>",
+  "authorizationCode": "<short-lived_code_from_apple>",
   "email": "optional@domain.com"
 }
 ```
+
+**Request Fields:**
+- `identityToken` (required): JWT returned by Apple; must be signed for your Apple Services ID.
+- `authorizationCode` (optional but accepted): Forwarded for parity with iOS clients; currently unused by the backend.
+- `email` (optional): Only provided the first time Apple shares it; used to link accounts when no `apple_sub` match exists.
 
 Response (200)
 ```json
@@ -754,12 +760,13 @@ Response (200)
 ```
 
 **Response Fields:**
-- `has_active_stack`: Whether the user has an active stack
-- `needs_onboarding`: Whether the user needs to go through the onboarding flow
-- Values depend on whether this is a new Apple user or a returning user
+- `has_active_stack`: Whether the user currently has an active stack
+- `needs_onboarding`: Inverse of `has_active_stack`; used by the client to decide whether to start onboarding
 
 Errors
-- 401 if Apple token invalid
+- 400 if `identityToken` is missing
+- 401 if the Apple token is invalid/expired
+- 500 if the backend cannot reach Apple or Secrets Manager
 
 #### POST /auth/send-code
 Send a verification code via SMS or email for passwordless login or password reset.

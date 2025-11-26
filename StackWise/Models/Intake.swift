@@ -84,10 +84,10 @@ public struct Basics: Codable {
     public var dietaryPreferences: Set<DietaryPreference>
     
     public init(
-        age: Int = 25,
+        age: Int = 0,
         sex: User.Sex = .other,
-        height: Double = 170,
-        weight: Double = 70,
+        height: Double = 0,
+        weight: Double = 0,
         bodyFat: Double? = nil,
         stimulantTolerance: User.StimulantTolerance = .moderate,
         budgetPerMonth: Double = 100,

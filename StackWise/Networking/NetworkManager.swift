@@ -72,12 +72,25 @@ public class NetworkManager {
         endpoint: String,
         method: String = "GET",
         body: Encodable? = nil,
+        rawBodyData: Data? = nil,
         requiresAuth: Bool = true,
         responseType: T.Type
     ) async throws -> T {
         var bodyData: Data? = nil
         
-        if let body = body {
+        // Use rawBodyData if provided (bypasses snake_case encoding)
+        // Otherwise encode the body with snake_case strategy
+        if let rawData = rawBodyData {
+            bodyData = rawData
+            
+            // Debug logging
+            #if DEBUG
+            if let jsonString = String(data: rawData, encoding: .utf8) {
+                print("📤 \(method) \(endpoint)")
+                print("📦 Request body (raw): \(jsonString)")
+            }
+            #endif
+        } else if let body = body {
             let encoder = JSONEncoder()
             encoder.keyEncodingStrategy = .convertToSnakeCase
             bodyData = try encoder.encode(body)

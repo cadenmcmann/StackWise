@@ -87,7 +87,7 @@ struct GoalsScreen: View {
             HStack(spacing: Theme.Spacing.md) {
                 SecondaryButton(
                     title: "Skip",
-                    action: { viewModel.nextStep() }
+                    action: { viewModel.skipGoals() }
                 )
                 .frame(maxWidth: .infinity)
                 
