@@ -64,20 +64,6 @@ struct ReviewScreen: View {
                             }
                             InfoRow(label: "Stimulant Tolerance", value: viewModel.intake.basics.stimulantTolerance.rawValue)
                             InfoRow(label: "Budget", value: "$\(Int(viewModel.intake.basics.budgetPerMonth))/month")
-                            
-                            if !viewModel.intake.basics.dietaryPreferences.isEmpty {
-                                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                                    Text("Dietary Preferences")
-                                        .font(Theme.Typography.caption)
-                                        .foregroundColor(Theme.Colors.textSecondary)
-                                    
-                                    FlowLayout(spacing: Theme.Spacing.xs) {
-                                        ForEach(Array(viewModel.intake.basics.dietaryPreferences), id: \.self) { pref in
-                                            Tag(text: pref.rawValue, type: .dietary)
-                                        }
-                                    }
-                                }
-                            }
                         }
                     }
                     
@@ -162,7 +148,7 @@ struct ReviewCard<Content: View>: View {
         .background(
             RoundedRectangle(cornerRadius: Theme.Radii.lg)
                 .fill(Theme.Colors.surface)
-                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .shadow(color: Theme.Colors.shadow, radius: 4, x: 0, y: 2)
         )
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radii.lg)

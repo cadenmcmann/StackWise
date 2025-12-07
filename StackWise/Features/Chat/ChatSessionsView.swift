@@ -213,7 +213,7 @@ private struct LoadingOverlay: View {
         .background(
             RoundedRectangle(cornerRadius: Theme.Radii.md)
                 .fill(Theme.Colors.surface)
-                .shadow(radius: 4, y: 2)
+                .shadow(color: Theme.Colors.shadow, radius: 4, x: 0, y: 2)
         )
     }
 }

@@ -59,11 +59,16 @@ public class OnboardingViewModel: ObservableObject {
     public init(container: DIContainer) {
         self.container = container
         
+        print("📱 OnboardingViewModel init - isRemixFlow: \(container.isRemixFlow), remixIntake: \(container.remixIntake != nil ? "set" : "nil")")
+        
         // If this is a remix flow, pre-fill with existing preferences
         if container.isRemixFlow {
             // Pre-fill intake if available
             if let remixIntake = container.remixIntake {
                 self.intake = remixIntake
+                print("✅ Pre-filled intake from remix - goals: \(remixIntake.goals.count), age: \(remixIntake.basics.age), priority: '\(remixIntake.topPriorityText)'")
+            } else {
+                print("⚠️ Remix flow but remixIntake is nil - forms will be empty")
             }
             // Skip welcome step since user is already authenticated
             self.currentStep = .splash
@@ -156,7 +161,6 @@ public class OnboardingViewModel: ObservableObject {
                 user.bodyFat = intake.basics.bodyFat
                 user.stimulantTolerance = intake.basics.stimulantTolerance
                 user.budgetPerMonth = intake.basics.budgetPerMonth
-                user.dietaryPreferences = intake.basics.dietaryPreferences
                 
                 container.currentUser = user
             }

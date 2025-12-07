@@ -209,16 +209,6 @@ struct SupplementDetailSheet: View {
                                         value: info.timingTags.map { $0.capitalized }.joined(separator: ", ")
                                     )
                                     
-                                    // Dietary Flags
-                                    if !info.dietaryFlags.isEmpty {
-                                        DetailInfoRow(
-                                            label: "Dietary",
-                                            value: info.dietaryFlags.map { 
-                                                $0.replacingOccurrences(of: "_", with: " ").capitalized 
-                                            }.joined(separator: ", ")
-                                        )
-                                    }
-                                    
                                     // Stimulant Free
                                     DetailInfoRow(
                                         label: "Stimulant",

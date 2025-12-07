@@ -81,7 +81,6 @@ public struct Basics: Codable {
     public var bodyFat: Double?
     public var stimulantTolerance: User.StimulantTolerance
     public var budgetPerMonth: Double
-    public var dietaryPreferences: Set<DietaryPreference>
     
     public init(
         age: Int = 0,
@@ -90,8 +89,7 @@ public struct Basics: Codable {
         weight: Double = 0,
         bodyFat: Double? = nil,
         stimulantTolerance: User.StimulantTolerance = .moderate,
-        budgetPerMonth: Double = 100,
-        dietaryPreferences: Set<DietaryPreference> = []
+        budgetPerMonth: Double = 100
     ) {
         self.age = age
         self.sex = sex
@@ -100,7 +98,6 @@ public struct Basics: Codable {
         self.bodyFat = bodyFat
         self.stimulantTolerance = stimulantTolerance
         self.budgetPerMonth = budgetPerMonth
-        self.dietaryPreferences = dietaryPreferences
     }
 }
 

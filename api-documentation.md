@@ -30,7 +30,7 @@ The API uses strongly-typed interfaces throughout. Key types for front-end devel
 
 **StimulantTolerance**: `"none" | "low" | "moderate" | "high"`
 
-**DietaryFlag**: `"vegan" | "vegetarian" | "gluten_free" | "dairy_free" | "soy_free" | "nut_free"`
+**Impact**: `"HIGH" | "MEDIUM" | "LOW"` (supplements may include this classification)
 
 **Goal**: String literal type - see `/goals` endpoint for all 20 valid values (e.g., "Build Muscle", "Improve Sleep Quality")
 
@@ -345,7 +345,7 @@ Send a message to a chat session and receive an AI-generated response.
 2. The AI generates a response using GPT-4o-mini
 3. Context is automatically included:
    - User's goals from preferences
-   - Age, sex, dietary preferences, stimulant tolerance
+   - Age, sex, stimulant tolerance
    - Active supplement stack (names and doses)
    - Last 6 messages from this conversation
 4. The assistant's response is saved to the database
@@ -359,7 +359,6 @@ User Profile:
 - Goals: Build Muscle, Improve Sleep Quality
 - Age: 28
 - Sex: male
-- Dietary: gluten_free
 - Stimulant tolerance: moderate
 
 Active Stack:
@@ -513,7 +512,6 @@ Below are the key tables and columns used by the API. Types are PostgreSQL.
 - `body_fat_pct` NUMERIC NULLABLE
 - `stimulant_tolerance` TEXT NULLABLE (valid: 'none', 'low', 'moderate', 'high')
 - `budget_usd` INTEGER NULLABLE
-- `dietary_prefs` TEXT[] NOT NULL DEFAULT '{}' (e.g., 'vegan', 'vegetarian', 'gluten_free')
 - `priority_text` TEXT NULLABLE
 - `updated_at` TIMESTAMP DEFAULT now()
 
@@ -524,8 +522,8 @@ Below are the key tables and columns used by the API. Types are PostgreSQL.
 - `purpose_long` TEXT NULLABLE (3-5 sentence overview)
 - `scientific_function` TEXT NULLABLE (how the supplement works scientifically)
 - `timing_tags` TEXT[] NOT NULL DEFAULT '{}' (valid: 'morning', 'afternoon', 'evening', 'night')
-- `dietary_flags` TEXT[] NOT NULL DEFAULT '{}'
 - `stimulant_free` BOOLEAN NOT NULL DEFAULT true
+- `impact` TEXT NULLABLE (valid: 'HIGH', 'MEDIUM', 'LOW')
 - `citations` TEXT[] NOT NULL DEFAULT '{}'
 
 ### stacks
@@ -724,6 +722,7 @@ Response (200)
 Errors
 - 400 if neither email nor phone_number provided, or both provided
 - 401 if credentials invalid
+- 403 if the user account has been deactivated
 
 #### POST /auth/apple
 Validates an Apple `identityToken` using Apple's JWKS, links it to an existing user (by `apple_sub` or email), creates a user if needed, and returns a StackWise JWT.
@@ -767,6 +766,7 @@ Errors
 - 400 if `identityToken` is missing
 - 401 if the Apple token is invalid/expired
 - 500 if the backend cannot reach Apple or Secrets Manager
+- 403 if the matched StackWise user account is deactivated
 
 #### POST /auth/send-code
 Send a verification code via SMS or email for passwordless login or password reset.
@@ -1004,6 +1004,40 @@ Errors
 - 404 if user not found
 - 409 if phone number already in use by another account
 
+#### POST /users/deactivate
+Deactivate the authenticated user's account and remove personalized data.
+
+**Purpose**: Allow a user to permanently disable their account. The record in the `users` table remains for auditing purposes, but all stacks and preference data are deleted.
+
+**Authentication**: Required (JWT Bearer token)
+
+Request
+```http
+POST {{baseUrl}}users/deactivate
+Authorization: Bearer {{jwt}}
+```
+
+No body is required.
+
+Response (200)
+```json
+{
+  "success": true,
+  "message": "User account deactivated"
+}
+```
+
+**Side Effects:**
+- `users.active` is set to `false`.
+- `users.active_last_updated` is set to the current timestamp.
+- All stacks (`stacks` table) belonging to the user are deleted.
+- The user's `user_preferences` record is deleted.
+
+Errors
+- 401 if the token is missing or invalid
+- 400 if the account is already deactivated
+- 404 if the user record cannot be found
+
 ---
 
 ### User Preferences
@@ -1031,7 +1065,6 @@ Authorization: Bearer {{jwt}}
   "body_fat_pct": 15.5,
   "stimulant_tolerance": "moderate",
   "budget_usd": 120,
-  "dietary_prefs": ["gluten_free"],
   "priority_text": "Focus on energy and recovery"
 }
 ```
@@ -1051,7 +1084,6 @@ Response (201 for create, 200 for update)
     "body_fat_pct": 15.5,
     "stimulant_tolerance": "moderate",
     "budget_usd": 120,
-    "dietary_prefs": ["gluten_free"],
     "priority_text": "Focus on energy and recovery",
     "updated_at": "2025-01-01T00:00:00.000Z"
   }
@@ -1062,7 +1094,6 @@ Response (201 for create, 200 for update)
 - All fields except `goals` are optional
 - Valid values for `sex`: "male", "female", "other"
 - Valid values for `stimulant_tolerance`: "none", "low", "moderate", "high"
-- Valid values for `dietary_prefs`: "vegan", "vegetarian", "gluten_free", "dairy_free", "soy_free", "nut_free"
 - Valid values for `goals`: See `/goals` endpoint for full list
 
 Errors
@@ -1092,7 +1123,6 @@ Response (200)
     "body_fat_pct": 15.5,
     "stimulant_tolerance": "moderate",
     "budget_usd": 120,
-    "dietary_prefs": ["gluten_free"],
     "priority_text": "Focus on energy and recovery",
     "updated_at": "2025-01-01T00:00:00.000Z"
   }
@@ -1696,7 +1726,7 @@ Errors
 ## Implementation Notes
 
 - Authorization is via Bearer JWT; obtain via signup/login/apple and include on protected endpoints.
-- Arrays returned from preferences (e.g., `goals`, `dietary_prefs`) are JSON arrays of strings.
+- Arrays returned from preferences (e.g., `goals`) are JSON arrays of strings.
 - Generated stacks are stored as JSONB arrays with supplement details; front-end can render directly.
 
 ## Postman

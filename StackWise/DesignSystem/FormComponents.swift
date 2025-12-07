@@ -7,6 +7,7 @@ public struct CustomTextField: View {
     let placeholder: String
     let icon: String?
     let keyboardType: UIKeyboardType
+    @FocusState private var isFocused: Bool
     
     public init(
         title: String,
@@ -38,6 +39,7 @@ public struct CustomTextField: View {
                 TextField(placeholder, text: $text)
                     .font(Theme.Typography.body)
                     .keyboardType(keyboardType)
+                    .focused($isFocused)
             }
             .padding(Theme.Spacing.md)
             .background(
@@ -190,6 +192,7 @@ public struct WeightInputField: View {
     @Binding var weightKg: Double
     @Binding var unit: WeightUnit
     @State private var weightText: String = ""
+    @FocusState private var isFocused: Bool
     
     public init(
         title: String = "Weight",
@@ -211,6 +214,7 @@ public struct WeightInputField: View {
                 TextField(unit == .kg ? "70" : "154", text: $weightText)
                     .font(Theme.Typography.body)
                     .keyboardType(.decimalPad)
+                    .focused($isFocused)
                     .onChange(of: weightText) { _, newValue in
                         if let value = Double(newValue), value > 0 {
                             weightKg = unit.toKg(value)

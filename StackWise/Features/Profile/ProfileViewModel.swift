@@ -53,19 +53,6 @@ public class ProfileViewModel: ObservableObject {
         // TODO: Trigger stack regeneration with new budget
     }
     
-    func toggleDietaryPreference(_ preference: DietaryPreference) {
-        guard var user = user else { return }
-        
-        if user.dietaryPreferences.contains(preference) {
-            user.dietaryPreferences.remove(preference)
-        } else {
-            user.dietaryPreferences.insert(preference)
-        }
-        
-        self.user = user
-        container.currentUser = user
-    }
-    
     func deleteAccount() async {
         // Clear all data
         do {

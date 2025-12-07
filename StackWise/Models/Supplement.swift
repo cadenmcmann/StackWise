@@ -41,7 +41,6 @@ public struct Supplement: Identifiable, Codable, Equatable {
     }
     
     public enum SupplementFlag: String, Codable {
-        case vegan = "Vegan"
         case stimulantFree = "Stimulant-Free"
         case thirdPartyTested = "3rd Party Tested"
     }

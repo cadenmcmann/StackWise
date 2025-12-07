@@ -28,8 +28,7 @@ public class MockAuthService: AuthService {
             weight: 75,
             bodyFat: 18,
             stimulantTolerance: .moderate,
-            budgetPerMonth: 150,
-            dietaryPreferences: []
+            budgetPerMonth: 150
         )
         _currentUser = user
         return user
@@ -56,8 +55,7 @@ public class MockAuthService: AuthService {
             weight: 70,
             bodyFat: nil,
             stimulantTolerance: .moderate,
-            budgetPerMonth: 100,
-            dietaryPreferences: []
+            budgetPerMonth: 100
         )
         _currentUser = user
         return user
@@ -82,8 +80,7 @@ public class MockAuthService: AuthService {
             weight: 70,
             bodyFat: nil,
             stimulantTolerance: .moderate,
-            budgetPerMonth: 100,
-            dietaryPreferences: []
+            budgetPerMonth: 100
         )
         _currentUser = user
         return user
@@ -108,8 +105,7 @@ public class MockAuthService: AuthService {
             weight: 70,
             bodyFat: nil,
             stimulantTolerance: .moderate,
-            budgetPerMonth: 100,
-            dietaryPreferences: []
+            budgetPerMonth: 100
         )
         _currentUser = user
         return user
@@ -161,8 +157,7 @@ public class MockAuthService: AuthService {
                     weight: 70,
                     bodyFat: nil,
                     stimulantTolerance: .moderate,
-                    budgetPerMonth: 100,
-                    dietaryPreferences: []
+                    budgetPerMonth: 100
                 )
                 _currentUser = user
                 

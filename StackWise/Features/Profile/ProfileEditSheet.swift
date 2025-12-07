@@ -229,7 +229,7 @@ public struct ProfileEditSheet: View {
                             RoundedRectangle(cornerRadius: Theme.Radii.md)
                                 .fill(Theme.Colors.surface)
                                 .shadow(
-                                    color: Color.black.opacity(0.1),
+                                    color: Theme.Colors.shadowStrong,
                                     radius: 10,
                                     x: 0,
                                     y: 4

@@ -1,23 +1,151 @@
 import SwiftUI
 
+// MARK: - Adaptive Color Extension
+/// Creates a Color that automatically adapts to light/dark mode
+extension Color {
+    init(light: Color, dark: Color) {
+        self.init(UIColor { traitCollection in
+            switch traitCollection.userInterfaceStyle {
+            case .dark:
+                return UIColor(dark)
+            default:
+                return UIColor(light)
+            }
+        })
+    }
+    
+    init(lightHex: UInt, darkHex: UInt) {
+        self.init(
+            light: Color(hex: lightHex),
+            dark: Color(hex: darkHex)
+        )
+    }
+    
+    init(hex: UInt, opacity: Double = 1.0) {
+        self.init(
+            red: Double((hex >> 16) & 0xFF) / 255.0,
+            green: Double((hex >> 8) & 0xFF) / 255.0,
+            blue: Double(hex & 0xFF) / 255.0,
+            opacity: opacity
+        )
+    }
+}
+
 // MARK: - Theme
 /// Centralized design tokens for consistent styling across the app
 public struct Theme {
     
     // MARK: - Colors
+    /// Adaptive color palette that automatically responds to light/dark mode
     public struct Colors {
-        static let primary = Color(red: 0.0, green: 0.478, blue: 1.0) // Clinical blue
-        static let primaryMuted = Color(red: 0.4, green: 0.6, blue: 1.0)
-        static let textPrimary = Color(red: 0.11, green: 0.11, blue: 0.118)
-        static let textSecondary = Color(red: 0.557, green: 0.557, blue: 0.576)
-        static let surface = Color.white
-        static let surfaceAlt = Color(red: 0.98, green: 0.98, blue: 0.98)
-        static let border = Color(red: 0.878, green: 0.878, blue: 0.878)
-        static let info = Color(red: 0.0, green: 0.478, blue: 1.0)
-        static let warning = Color(red: 1.0, green: 0.584, blue: 0.0)
-        static let danger = Color(red: 1.0, green: 0.231, blue: 0.188)
-        static let success = Color(red: 0.196, green: 0.843, blue: 0.294)
-        static let disabled = Color(red: 0.776, green: 0.776, blue: 0.784)
+        // Primary brand color - clinical blue
+        // Light: #007AFF, Dark: #0A84FF (iOS system blue for dark mode - slightly brighter)
+        static let primary = Color(
+            light: Color(red: 0.0, green: 0.478, blue: 1.0),
+            dark: Color(red: 0.039, green: 0.518, blue: 1.0)
+        )
+        
+        // Muted primary for subtle accents
+        static let primaryMuted = Color(
+            light: Color(red: 0.4, green: 0.6, blue: 1.0),
+            dark: Color(red: 0.35, green: 0.55, blue: 0.95)
+        )
+        
+        // Primary text - high contrast
+        // Light: Near black #1C1C1E, Dark: White #FFFFFF
+        static let textPrimary = Color(
+            light: Color(red: 0.11, green: 0.11, blue: 0.118),
+            dark: Color.white
+        )
+        
+        // Secondary text - medium contrast
+        // Light: #8E8E93, Dark: #8E8E93 (works well in both modes)
+        static let textSecondary = Color(
+            light: Color(red: 0.557, green: 0.557, blue: 0.576),
+            dark: Color(red: 0.557, green: 0.557, blue: 0.576)
+        )
+        
+        // Main background surface
+        // Light: White #FFFFFF, Dark: True black #000000 (OLED friendly)
+        static let surface = Color(
+            light: Color.white,
+            dark: Color.black
+        )
+        
+        // Elevated/alternate surface for cards, inputs
+        // Light: Off-white #FAFAFA, Dark: Elevated dark #1C1C1E
+        static let surfaceAlt = Color(
+            light: Color(red: 0.98, green: 0.98, blue: 0.98),
+            dark: Color(red: 0.11, green: 0.11, blue: 0.118)
+        )
+        
+        // Borders and dividers
+        // Light: #E0E0E0, Dark: #38383A
+        static let border = Color(
+            light: Color(red: 0.878, green: 0.878, blue: 0.878),
+            dark: Color(red: 0.22, green: 0.22, blue: 0.227)
+        )
+        
+        // Semantic colors with adaptive variants
+        // Info - same as primary
+        static let info = Color(
+            light: Color(red: 0.0, green: 0.478, blue: 1.0),
+            dark: Color(red: 0.039, green: 0.518, blue: 1.0)
+        )
+        
+        // Warning - orange
+        // Light: #FF9500, Dark: #FF9F0A (slightly brighter for dark mode)
+        static let warning = Color(
+            light: Color(red: 1.0, green: 0.584, blue: 0.0),
+            dark: Color(red: 1.0, green: 0.624, blue: 0.039)
+        )
+        
+        // Danger/Error - red
+        // Light: #FF3B30, Dark: #FF453A
+        static let danger = Color(
+            light: Color(red: 1.0, green: 0.231, blue: 0.188),
+            dark: Color(red: 1.0, green: 0.271, blue: 0.227)
+        )
+        
+        // Success - green
+        // Light: #32D74B, Dark: #30D158
+        static let success = Color(
+            light: Color(red: 0.196, green: 0.843, blue: 0.294),
+            dark: Color(red: 0.188, green: 0.82, blue: 0.345)
+        )
+        
+        // Disabled state
+        // Light: #C6C6C8, Dark: #48484A
+        static let disabled = Color(
+            light: Color(red: 0.776, green: 0.776, blue: 0.784),
+            dark: Color(red: 0.282, green: 0.282, blue: 0.29)
+        )
+        
+        // MARK: - Shadow Colors
+        /// Adaptive shadow color - darker in light mode, subtle glow in dark mode
+        static let shadow = Color(
+            light: Color.black.opacity(0.08),
+            dark: Color.white.opacity(0.04)
+        )
+        
+        /// Stronger shadow for elevated elements
+        static let shadowStrong = Color(
+            light: Color.black.opacity(0.15),
+            dark: Color.white.opacity(0.08)
+        )
+        
+        // MARK: - Apple Sign In Button Colors
+        /// Per Apple HIG: black button in light mode, white button in dark mode
+        static let appleButtonBackground = Color(
+            light: Color.black,
+            dark: Color.white
+        )
+        
+        /// Per Apple HIG: white text in light mode, black text in dark mode
+        static let appleButtonForeground = Color(
+            light: Color.white,
+            dark: Color.black
+        )
     }
     
     // MARK: - Radii

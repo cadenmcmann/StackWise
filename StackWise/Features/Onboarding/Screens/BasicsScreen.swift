@@ -5,7 +5,6 @@ struct BasicsScreen: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @State private var ageText = ""
     @State private var bodyFatText = ""
-    @State private var selectedDietaryPrefs: Set<String> = []
     @State private var weightUnit: WeightUnit = .lbs
     @State private var heightUnit: HeightUnit = .imperial
     
@@ -48,6 +47,9 @@ struct BasicsScreen: View {
                                 keyboardType: .numberPad
                             )
                             .frame(maxWidth: .infinity)
+                            .onChange(of: ageText) { _, newValue in
+                                viewModel.intake.basics.age = Int(newValue) ?? 0
+                            }
                             
                             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                                 Text("Sex")
@@ -82,6 +84,9 @@ struct BasicsScreen: View {
                             placeholder: "20",
                             keyboardType: .decimalPad
                         )
+                        .onChange(of: bodyFatText) { _, newValue in
+                            viewModel.intake.basics.bodyFat = newValue.isEmpty ? nil : Double(newValue)
+                        }
                     }
                     
                     Divider()
@@ -105,26 +110,6 @@ struct BasicsScreen: View {
                             range: 25...500,
                             step: 25,
                             format: "$%.0f"
-                        )
-                    }
-                    
-                    Divider()
-                    
-                    // Dietary Preferences
-                    VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
-                        Text("Dietary Preferences")
-                            .font(Theme.Typography.subhead)
-                            .fontWeight(.semibold)
-                            .foregroundColor(Theme.Colors.textPrimary)
-                        
-                        ChipGroup(
-                            chips: DietaryPreference.allCases.map { pref in
-                                ChipGroup.ChipData(
-                                    id: pref.rawValue,
-                                    label: pref.rawValue
-                                )
-                            },
-                            selectedIds: $selectedDietaryPrefs
                         )
                     }
                 }
@@ -170,12 +155,10 @@ struct BasicsScreen: View {
         if let bodyFat = viewModel.intake.basics.bodyFat {
             bodyFatText = "\(Int(bodyFat))"
         }
-        selectedDietaryPrefs = Set(viewModel.intake.basics.dietaryPreferences.map { $0.rawValue })
     }
     
     private func saveBasics() {
         viewModel.intake.basics.age = Int(ageText) ?? 0
         viewModel.intake.basics.bodyFat = bodyFatText.isEmpty ? nil : Double(bodyFatText)
-        viewModel.intake.basics.dietaryPreferences = Set(selectedDietaryPrefs.compactMap { DietaryPreference(rawValue: $0) })
     }
 }

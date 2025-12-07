@@ -104,7 +104,6 @@ public struct PreferencesRequest: Codable {
     let bodyFatPct: Double?
     let stimulantTolerance: String?
     let budgetUsd: Int?
-    let dietaryPrefs: [String]
     let priorityText: String?
 }
 
@@ -121,10 +120,9 @@ public struct APIPreferences: Codable {
     let sex: String?
     let heightCm: Int?
     let weightKg: Int?
-    let bodyFatPct: String?  // API returns as string "18.00"
+    let bodyFatPct: Double?  // API returns as number
     let stimulantTolerance: String?
     let budgetUsd: Int?
-    let dietaryPrefs: [String]
     let priorityText: String?
     let updatedAt: String?
 }
@@ -323,12 +321,9 @@ extension APIPreferences {
             sex: mapSex(sex),
             height: Double(heightCm ?? 170),
             weight: Double(weightKg ?? 70),
-            bodyFat: bodyFatPct.flatMap { Double($0) },  // Convert string to Double
+            bodyFat: bodyFatPct,
             stimulantTolerance: mapStimulantTolerance(stimulantTolerance),
-            budgetPerMonth: Double(budgetUsd ?? 100),
-            dietaryPreferences: Set(dietaryPrefs.compactMap { pref in
-                DietaryPreference.allCases.first { $0.rawValue.lowercased() == pref.lowercased() }
-            })
+            budgetPerMonth: Double(budgetUsd ?? 100)
         )
         
         intake.topPriorityText = priorityText ?? ""
@@ -362,9 +357,6 @@ extension Intake {
         // Convert our internal goals to strings for the API
         let goalStrings = goals.map { $0.rawValue }
         
-        // Convert dietary preferences to strings
-        let dietaryStrings = basics.dietaryPreferences.map { $0.rawValue }
-        
         return PreferencesRequest(
             goals: goalStrings,
             age: basics.age,
@@ -374,7 +366,6 @@ extension Intake {
             bodyFatPct: basics.bodyFat,
             stimulantTolerance: basics.stimulantTolerance.rawValue.lowercased(),
             budgetUsd: Int(basics.budgetPerMonth),
-            dietaryPrefs: dietaryStrings,
             priorityText: topPriorityText.isEmpty ? nil : topPriorityText
         )
     }
@@ -437,12 +428,9 @@ extension APIUser {
             user.sex = mapSex(preferences.sex)
             user.height = Double(preferences.heightCm ?? Int(user.height))
             user.weight = Double(preferences.weightKg ?? Int(user.weight))
-            user.bodyFat = preferences.bodyFatPct.flatMap { Double($0) }  // Convert string to Double
+            user.bodyFat = preferences.bodyFatPct
             user.stimulantTolerance = mapStimulantTolerance(preferences.stimulantTolerance)
             user.budgetPerMonth = Double(preferences.budgetUsd ?? Int(user.budgetPerMonth))
-            user.dietaryPreferences = Set(preferences.dietaryPrefs.compactMap { pref in
-                DietaryPreference.allCases.first { $0.rawValue.lowercased() == pref.lowercased() }
-            })
         }
         
         return user

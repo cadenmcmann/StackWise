@@ -25,18 +25,26 @@ public class StackViewModel: ObservableObject {
     // MARK: - Actions
     
     func startRemixFlow() async {
+        print("🔄 Starting remix flow...")
         // Fetch current user preferences to pre-fill the onboarding
         do {
             let preferences = try await container.preferencesService.fetchPreferences()
+            
+            if let prefs = preferences {
+                print("✅ Got preferences for remix - goals: \(prefs.goals.count), age: \(prefs.basics.age)")
+            } else {
+                print("⚠️ fetchPreferences returned nil")
+            }
             
             // Set all flags together on main actor to avoid race conditions
             await MainActor.run {
                 container.remixIntake = preferences
                 container.isRemixFlow = true
                 container.onboardingCompleted = false
+                print("✅ Set remix flags - remixIntake: \(container.remixIntake != nil ? "set" : "nil")")
             }
         } catch {
-            print("Failed to fetch preferences for remix: \(error)")
+            print("❌ Failed to fetch preferences for remix: \(error)")
             // If we can't fetch preferences, still allow remix with empty intake
             await MainActor.run {
                 container.remixIntake = nil

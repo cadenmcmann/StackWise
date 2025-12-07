@@ -27,12 +27,21 @@ public class RealPreferencesService: PreferencesService {
                 responseType: PreferencesResponse.self
             )
             
-            return response.preferences.toIntake()
+            print("✅ Fetched preferences successfully")
+            let intake = response.preferences.toIntake()
+            print("📋 Converted to intake - goals: \(intake.goals.count), age: \(intake.basics.age), priority: \(intake.topPriorityText)")
+            return intake
         } catch {
-            // If 404 (no preferences), return nil
+            // If 404 (no preferences), return nil - handle both error types
             if case NetworkError.httpError(let statusCode) = error, statusCode == 404 {
+                print("ℹ️ No preferences found (404 httpError)")
                 return nil
             }
+            if case NetworkError.apiError(_, let statusCode) = error, statusCode == 404 {
+                print("ℹ️ No preferences found (404 apiError)")
+                return nil
+            }
+            print("❌ Failed to fetch preferences: \(error)")
             throw error
         }
     }

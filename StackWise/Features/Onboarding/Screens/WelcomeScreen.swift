@@ -45,8 +45,8 @@ struct WelcomeScreen: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
-                    .background(Color.black)
-                    .foregroundColor(.white)
+                    .background(Theme.Colors.appleButtonBackground)
+                    .foregroundColor(Theme.Colors.appleButtonForeground)
                     .cornerRadius(Theme.Radii.md)
                 }
                 .buttonStyle(PlainButtonStyle())

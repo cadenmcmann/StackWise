@@ -124,7 +124,7 @@ struct AccountInformationSection: View {
                     Circle()
                         .fill(Theme.Colors.surface)
                         .frame(width: 90, height: 90)
-                        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 2)
+                        .shadow(color: Theme.Colors.shadowStrong, radius: 8, x: 0, y: 2)
                     
                     Circle()
                         .fill(
@@ -211,7 +211,7 @@ struct AccountInformationSection: View {
         .background(
             RoundedRectangle(cornerRadius: Theme.Radii.xl)
                 .fill(Theme.Colors.surface)
-                .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
+                .shadow(color: Theme.Colors.shadow, radius: 12, x: 0, y: 4)
         )
     }
     

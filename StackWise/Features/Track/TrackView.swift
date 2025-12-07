@@ -311,7 +311,7 @@ struct DaySupplementsView: View {
         .background(
             RoundedRectangle(cornerRadius: Theme.Radii.lg)
                 .fill(Theme.Colors.surface)
-                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 4)
+                .shadow(color: Theme.Colors.shadow, radius: 8, x: 0, y: 4)
         )
         .padding(.horizontal, Theme.Spacing.gutter)
     }

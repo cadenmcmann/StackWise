@@ -18,7 +18,6 @@ public struct User: Identifiable, Codable {
     public var bodyFat: Double?
     public var stimulantTolerance: StimulantTolerance
     public var budgetPerMonth: Double
-    public var dietaryPreferences: Set<DietaryPreference>
     
     public enum Sex: String, Codable, CaseIterable {
         case male = "Male"
@@ -46,8 +45,7 @@ public struct User: Identifiable, Codable {
         weight: Double,
         bodyFat: Double? = nil,
         stimulantTolerance: StimulantTolerance,
-        budgetPerMonth: Double,
-        dietaryPreferences: Set<DietaryPreference> = []
+        budgetPerMonth: Double
     ) {
         self.id = id
         self.email = email
@@ -62,7 +60,6 @@ public struct User: Identifiable, Codable {
         self.bodyFat = bodyFat
         self.stimulantTolerance = stimulantTolerance
         self.budgetPerMonth = budgetPerMonth
-        self.dietaryPreferences = dietaryPreferences
     }
     
     // Computed property for display name
@@ -90,13 +87,3 @@ public struct User: Identifiable, Codable {
     }
 }
 
-// MARK: - DietaryPreference
-public enum DietaryPreference: String, Codable, CaseIterable {
-    case vegan = "Vegan"
-    case vegetarian = "Vegetarian"
-    case halal = "Halal"
-    case kosher = "Kosher"
-    case dairyFree = "Dairy-Free"
-    case soyFree = "Soy-Free"
-    case glutenFree = "Gluten-Free"
-}

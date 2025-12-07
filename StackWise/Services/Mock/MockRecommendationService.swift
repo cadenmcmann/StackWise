@@ -69,45 +69,6 @@ public class MockRecommendationService: RecommendationService {
             addons.append(createAshwagandha())
         }
         
-        // Filter based on dietary preferences
-        let veganOnly = intake.basics.dietaryPreferences.contains(.vegan)
-        if veganOnly {
-            minimal = minimal.map { supplement in
-                return Supplement(
-                    id: supplement.id,
-                    name: supplement.name,
-                    purposeShort: supplement.purposeShort,
-                    purposeLong: supplement.purposeLong,
-                    scientificFunction: supplement.scientificFunction,
-                    doseRangeText: supplement.doseRangeText,
-                    formNote: supplement.formNote,
-                    timingTag: supplement.timingTag,
-                    evidenceLevel: supplement.evidenceLevel,
-                    flags: supplement.flags.union([.vegan]),
-                    citations: supplement.citations,
-                    rationale: supplement.rationale,
-                    active: supplement.active
-                )
-            }
-            addons = addons.map { supplement in
-                return Supplement(
-                    id: supplement.id,
-                    name: supplement.name,
-                    purposeShort: supplement.purposeShort,
-                    purposeLong: supplement.purposeLong,
-                    scientificFunction: supplement.scientificFunction,
-                    doseRangeText: supplement.doseRangeText,
-                    formNote: supplement.formNote,
-                    timingTag: supplement.timingTag,
-                    evidenceLevel: supplement.evidenceLevel,
-                    flags: supplement.flags.union([.vegan]),
-                    citations: supplement.citations,
-                    rationale: supplement.rationale,
-                    active: supplement.active
-                )
-            }
-        }
-        
         return Stack(minimal: minimal, addons: addons)
     }
     
@@ -162,7 +123,7 @@ public class MockRecommendationService: RecommendationService {
             formNote: "Powder recommended",
             timingTag: .morning,
             evidenceLevel: .a,
-            flags: [.vegan, .stimulantFree],
+            flags: [.stimulantFree],
             citations: [
                 Citation(
                     title: "Effects of creatine supplementation on performance",
@@ -187,7 +148,7 @@ public class MockRecommendationService: RecommendationService {
             formNote: "Glycinate form for better absorption",
             timingTag: .night,
             evidenceLevel: .a,
-            flags: [.vegan, .stimulantFree],
+            flags: [.stimulantFree],
             citations: [
                 Citation(
                     title: "The effect of magnesium supplementation on sleep",
@@ -212,7 +173,7 @@ public class MockRecommendationService: RecommendationService {
             formNote: nil,
             timingTag: .morning,
             evidenceLevel: .b,
-            flags: [.vegan, .stimulantFree],
+            flags: [.stimulantFree],
             citations: [
                 Citation(
                     title: "L-Theanine reduces psychological stress responses",
@@ -262,7 +223,7 @@ public class MockRecommendationService: RecommendationService {
             formNote: "KSM-66 extract",
             timingTag: .evening,
             evidenceLevel: .b,
-            flags: [.vegan, .stimulantFree],
+            flags: [.stimulantFree],
             citations: [
                 Citation(
                     title: "A prospective study on efficacy of Ashwagandha",

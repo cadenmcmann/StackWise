@@ -47,7 +47,7 @@ public struct ContactMethodToggle: View {
                             RoundedRectangle(cornerRadius: Theme.Radii.sm)
                                 .fill(Theme.Colors.surface)
                                 .shadow(
-                                    color: Color.black.opacity(0.08),
+                                    color: Theme.Colors.shadow,
                                     radius: 2,
                                     x: 0,
                                     y: 1
