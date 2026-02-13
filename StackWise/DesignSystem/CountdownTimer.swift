@@ -14,7 +14,7 @@ public struct CountdownTimer: View {
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     public init(
-        expirationTime: Int = 600, // 10 minutes
+        expirationTime: Int = 60, // 1 minute (matches backend expiration)
         resendCooldownTime: Int = 30,
         onResend: @escaping () async -> Void
     ) {

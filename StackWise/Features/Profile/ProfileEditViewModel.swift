@@ -8,7 +8,6 @@ public class ProfileEditViewModel: ObservableObject {
     @Published public var firstName = ""
     @Published public var lastName = ""
     @Published public var email = ""
-    @Published public var phoneNumber = ""
     @Published public var isLoading = false
     @Published public var error: Error?
     @Published public var showError = false
@@ -28,31 +27,24 @@ public class ProfileEditViewModel: ObservableObject {
         self.firstName = user.firstName ?? ""
         self.lastName = user.lastName ?? ""
         self.email = user.email ?? ""
-        self.phoneNumber = formatPhoneForDisplay(user.phoneNumber ?? "")
     }
     
     // MARK: - Computed Properties
     public var hasChanges: Bool {
         guard let originalUser = originalUser else { return false }
         
-        let currentPhoneFormatted = "+1" + phoneNumber.filter { $0.isNumber }
-        
         return firstName != (originalUser.firstName ?? "") ||
-               lastName != (originalUser.lastName ?? "") ||
-               (phoneNumber.filter { $0.isNumber }.count >= 10 && currentPhoneFormatted != originalUser.phoneNumber)
+               lastName != (originalUser.lastName ?? "")
     }
     
     public var isValid: Bool {
-        // At least one contact method must be present
-        let hasEmail = !email.isEmpty
-        let hasPhone = phoneNumber.filter { $0.isNumber }.count >= 10
-        
-        return hasEmail || hasPhone
+        // At least email must be present (which we keep read-only)
+        return !email.isEmpty
     }
     
     public var validationMessage: String? {
-        if email.isEmpty && phoneNumber.filter { $0.isNumber }.count < 10 {
-            return "At least one contact method (email or phone) is required"
+        if email.isEmpty {
+            return "An email address is required"
         }
         return nil
     }
@@ -67,19 +59,11 @@ public class ProfileEditViewModel: ObservableObject {
         showSuccessMessage = false
         
         do {
-            // Prepare phone number for API (E.164 format)
-            let phoneToSend: String?
-            if phoneNumber.filter { $0.isNumber }.count >= 10 {
-                phoneToSend = "+1" + phoneNumber.filter { $0.isNumber }
-            } else {
-                phoneToSend = nil
-            }
-            
             // Call update profile API
             let updatedUser = try await container.services.authService.updateProfile(
                 firstName: firstName.isEmpty ? nil : firstName,
                 lastName: lastName.isEmpty ? nil : lastName,
-                phoneNumber: phoneToSend
+                phoneNumber: nil
             )
             
             // Update container with new user data
@@ -90,7 +74,6 @@ public class ProfileEditViewModel: ObservableObject {
             self.firstName = updatedUser.firstName ?? ""
             self.lastName = updatedUser.lastName ?? ""
             self.email = updatedUser.email ?? ""
-            self.phoneNumber = formatPhoneForDisplay(updatedUser.phoneNumber ?? "")
             
             successMessage = "Profile updated successfully"
             showSuccessMessage = true
@@ -110,37 +93,5 @@ public class ProfileEditViewModel: ObservableObject {
         }
         
         isLoading = false
-    }
-    
-    public func formatPhoneNumber(_ value: String) -> String {
-        // Remove all non-digit characters
-        let digits = value.filter { $0.isNumber }
-        
-        // Limit to 10 digits
-        let limited = String(digits.prefix(10))
-        
-        // Format as (XXX) XXX-XXXX
-        var formatted = ""
-        for (index, character) in limited.enumerated() {
-            if index == 0 {
-                formatted += "("
-            } else if index == 3 {
-                formatted += ") "
-            } else if index == 6 {
-                formatted += "-"
-            }
-            formatted.append(character)
-        }
-        
-        return formatted
-    }
-    
-    // MARK: - Private Helpers
-    private func formatPhoneForDisplay(_ phone: String) -> String {
-        // Remove country code if present
-        let digits = phone.replacingOccurrences(of: "+1", with: "").filter { $0.isNumber }
-        
-        // Format for display
-        return formatPhoneNumber(digits)
     }
 }

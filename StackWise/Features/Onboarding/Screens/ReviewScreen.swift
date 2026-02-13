@@ -63,7 +63,6 @@ struct ReviewScreen: View {
                                 InfoRow(label: "Body Fat", value: "\(Int(bodyFat))%")
                             }
                             InfoRow(label: "Stimulant Tolerance", value: viewModel.intake.basics.stimulantTolerance.rawValue)
-                            InfoRow(label: "Budget", value: "$\(Int(viewModel.intake.basics.budgetPerMonth))/month")
                         }
                     }
                     
@@ -78,12 +77,12 @@ struct ReviewScreen: View {
                                 .foregroundColor(Theme.Colors.textSecondary)
                         } else {
                             VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                                ForEach(Array(viewModel.intake.risks), id: \.self) { risk in
+                                ForEach(Array(viewModel.intake.risks), id: \.self) { (risk: Risk) in
                                     HStack(spacing: Theme.Spacing.sm) {
-                                        Image(systemName: risk.isHardStop ? "exclamationmark.triangle.fill" : "info.circle.fill")
+                                        Image(systemName: "info.circle.fill")
                                             .font(.system(size: 14))
-                                            .foregroundColor(risk.isHardStop ? Theme.Colors.danger : Theme.Colors.warning)
-                                        
+                                            .foregroundColor(Theme.Colors.warning)
+
                                         Text(risk.rawValue)
                                             .font(Theme.Typography.caption)
                                             .foregroundColor(Theme.Colors.textPrimary)

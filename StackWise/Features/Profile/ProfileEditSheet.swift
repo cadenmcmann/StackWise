@@ -9,7 +9,6 @@ public struct ProfileEditSheet: View {
     enum Field: Hashable {
         case firstName
         case lastName
-        case phone
     }
     
     public init(container: DIContainer, user: User) {
@@ -130,49 +129,6 @@ public struct ProfileEditSheet: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: Theme.Radii.md)
                                     .stroke(Theme.Colors.border.opacity(0.5), lineWidth: 1)
-                            )
-                        }
-                        
-                        // Phone Number
-                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                            Text("Phone Number")
-                                .font(Theme.Typography.caption)
-                                .foregroundColor(Theme.Colors.textSecondary)
-                            
-                            HStack(spacing: Theme.Spacing.sm) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "phone.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(Theme.Colors.textSecondary)
-                                    
-                                    Text("+1")
-                                        .font(Theme.Typography.body)
-                                        .foregroundColor(Theme.Colors.textPrimary)
-                                }
-                                .padding(.leading, Theme.Spacing.xs)
-                                
-                                Divider()
-                                    .frame(height: 24)
-                                
-                                TextField("(555) 123-4567", text: $editViewModel.phoneNumber)
-                                    .font(Theme.Typography.body)
-                                    .keyboardType(.phonePad)
-                                    .focused($focusedField, equals: .phone)
-                                    .onChange(of: editViewModel.phoneNumber) { oldValue, newValue in
-                                        editViewModel.phoneNumber = editViewModel.formatPhoneNumber(newValue)
-                                    }
-                            }
-                            .padding(Theme.Spacing.md)
-                            .background(
-                                RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                    .fill(Theme.Colors.surfaceAlt)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                    .stroke(
-                                        focusedField == .phone ? Theme.Colors.primary : Theme.Colors.border,
-                                        lineWidth: focusedField == .phone ? 2 : 1
-                                    )
                             )
                         }
                     }

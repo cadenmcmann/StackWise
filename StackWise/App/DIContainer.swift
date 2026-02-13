@@ -25,6 +25,7 @@ public class DIContainer: ObservableObject {
     
     // Shared intake log manager for both Today and Track screens
     public let intakeLogManager: IntakeLogManager
+    private var authExpiryTask: Task<Void, Never>?
     
     // MARK: - Services Access
     public var services: Services {
@@ -39,27 +40,19 @@ public class DIContainer: ObservableObject {
     }
     
     // MARK: - Initialization
-    public init(useMocks: Bool = false) {
+    public init() {
         // Initialize intake log manager
         self.intakeLogManager = IntakeLogManager()
         
-        if useMocks {
-            // Initialize with mock services
-            self.authService = MockAuthService()
-            self.recommendationService = MockRecommendationService()
-            self.trackingService = MockTrackingService()
-            self.chatService = MockChatService()
-            self.goalsService = MockGoalsService()
-            self.preferencesService = MockPreferencesService()
-        } else {
-            // Initialize with real services
-            self.authService = RealAuthService()
-            self.recommendationService = RealRecommendationService()
-            self.trackingService = RealTrackingService()
-            self.chatService = RealChatService()
-            self.goalsService = RealGoalsService()
-            self.preferencesService = RealPreferencesService()
-        }
+        // Initialize services
+        self.authService = AuthServiceImpl()
+        self.recommendationService = RecommendationServiceImpl()
+        self.trackingService = TrackingServiceImpl()
+        self.chatService = ChatServiceImpl()
+        self.goalsService = GoalsServiceImpl()
+        self.preferencesService = PreferencesServiceImpl()
+
+        startTokenExpiryListener()
         
         // Check if user has a valid token
         if NetworkManager.shared.hasValidToken() {
@@ -76,6 +69,44 @@ public class DIContainer: ObservableObject {
         
         // Load any persisted state
         loadPersistedState()
+    }
+    
+    /// Testing initializer - allows injecting mock services
+    public init(
+        authService: AuthService? = nil,
+        recommendationService: RecommendationService? = nil,
+        trackingService: TrackingService? = nil,
+        chatService: ChatService? = nil,
+        goalsService: GoalsService? = nil,
+        preferencesService: PreferencesService? = nil,
+        intakeLogManager: IntakeLogManager? = nil,
+        skipInitialLoad: Bool = false
+    ) {
+        self.authService = authService ?? AuthServiceImpl()
+        self.recommendationService = recommendationService ?? RecommendationServiceImpl()
+        self.trackingService = trackingService ?? TrackingServiceImpl()
+        self.chatService = chatService ?? ChatServiceImpl()
+        self.goalsService = goalsService ?? GoalsServiceImpl()
+        self.preferencesService = preferencesService ?? PreferencesServiceImpl()
+        self.intakeLogManager = intakeLogManager ?? IntakeLogManager()
+        startTokenExpiryListener()
+        
+        // Skip loading persisted state and network checks during tests
+        if !skipInitialLoad {
+            if NetworkManager.shared.hasValidToken() {
+                currentUser = self.authService.currentUser()
+                if currentUser != nil {
+                    Task {
+                        await loadCurrentStack()
+                    }
+                }
+            }
+            loadPersistedState()
+        }
+    }
+
+    deinit {
+        authExpiryTask?.cancel()
     }
     
     // MARK: - Public Methods
@@ -120,7 +151,9 @@ public class DIContainer: ObservableObject {
             
             switch status {
             case .completed(let stackId):
+                #if DEBUG
                 print("✅ Stack generation completed: \(stackId)")
+                #endif
                 // Fetch the completed stack
                 currentStack = try await service.fetchCurrentStack()
                 currentJobId = nil
@@ -130,7 +163,9 @@ public class DIContainer: ObservableObject {
             case .failed(let errorMessage):
                 if jobRetryCount < 1 {
                     // Auto-retry once
+                    #if DEBUG
                     print("⚠️ Stack generation failed, retrying... Error: \(errorMessage)")
+                    #endif
                     jobRetryCount += 1
                     savePersistedState()
                     try await service.retryStackGeneration(jobId: jobId)
@@ -138,7 +173,9 @@ public class DIContainer: ObservableObject {
                     try await Task.sleep(nanoseconds: 3_000_000_000)
                 } else {
                     // Give up after one retry
+                    #if DEBUG
                     print("❌ Stack generation failed after retry: \(errorMessage)")
+                    #endif
                     currentJobId = nil
                     savePersistedState()
                     throw NetworkError.apiError(message: "Stack generation failed: \(errorMessage)", statusCode: 500)
@@ -154,7 +191,9 @@ public class DIContainer: ObservableObject {
     public func resumeJobPolling() async throws {
         guard let jobId = currentJobId else { return }
         
+        #if DEBUG
         print("🔄 Resuming job polling for: \(jobId)")
+        #endif
         
         // Continue polling the existing job
         try await pollJobUntilComplete(jobId: jobId)
@@ -168,12 +207,14 @@ public class DIContainer: ObservableObject {
     
     public func loadCurrentStack() async {
         do {
-            if let service = recommendationService as? RealRecommendationService {
+            if let service = recommendationService as? RecommendationServiceImpl {
                 currentStack = try await service.fetchCurrentStack()
                 savePersistedState()
             }
         } catch {
+            #if DEBUG
             print("Failed to load current stack: \(error)")
+            #endif
         }
     }
     
@@ -181,7 +222,7 @@ public class DIContainer: ObservableObject {
         return try await goalsService.fetchGoals()
     }
     
-    // MARK: - Persistence (Simple UserDefaults for scaffold)
+    // MARK: - Persistence
     
     private func loadPersistedState() {
         let defaults = UserDefaults.standard
@@ -193,15 +234,12 @@ public class DIContainer: ObservableObject {
         currentJobId = defaults.string(forKey: "currentJobId")
         jobRetryCount = defaults.integer(forKey: "jobRetryCount")
         
-        // Load user if exists
-        if let userData = defaults.data(forKey: "currentUser"),
-           let user = try? JSONDecoder().decode(User.self, from: userData) {
+        // Load user and stack from secure storage
+        if let user = SecureStorage.shared.getCodable(User.self, for: SecureStorageKeys.currentUser) {
             currentUser = user
         }
         
-        // Load stack if exists
-        if let stackData = defaults.data(forKey: "currentStack"),
-           let stack = try? JSONDecoder().decode(Stack.self, from: stackData) {
+        if let stack = SecureStorage.shared.getCodable(Stack.self, for: SecureStorageKeys.currentStack) {
             currentStack = stack
         }
     }
@@ -213,24 +251,43 @@ public class DIContainer: ObservableObject {
         defaults.set(currentJobId, forKey: "currentJobId")
         defaults.set(jobRetryCount, forKey: "jobRetryCount")
         
-        if let user = currentUser,
-           let userData = try? JSONEncoder().encode(user) {
-            defaults.set(userData, forKey: "currentUser")
+        if let user = currentUser {
+            SecureStorage.shared.setCodable(user, for: SecureStorageKeys.currentUser)
+        } else {
+            SecureStorage.shared.deleteValue(for: SecureStorageKeys.currentUser)
         }
         
-        if let stack = currentStack,
-           let stackData = try? JSONEncoder().encode(stack) {
-            defaults.set(stackData, forKey: "currentStack")
+        if let stack = currentStack {
+            SecureStorage.shared.setCodable(stack, for: SecureStorageKeys.currentStack)
+        } else {
+            SecureStorage.shared.deleteValue(for: SecureStorageKeys.currentStack)
         }
     }
     
     private func clearPersistedState() {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: "onboardingCompleted")
-        defaults.removeObject(forKey: "currentUser")
-        defaults.removeObject(forKey: "currentStack")
         defaults.removeObject(forKey: "currentJobId")
         defaults.removeObject(forKey: "jobRetryCount")
+        SecureStorage.shared.deleteValue(for: SecureStorageKeys.currentUser)
+        SecureStorage.shared.deleteValue(for: SecureStorageKeys.currentStack)
+    }
+
+    private func startTokenExpiryListener() {
+        authExpiryTask?.cancel()
+        authExpiryTask = Task { [weak self] in
+            for await _ in NotificationCenter.default.notifications(named: .authTokenExpired) {
+                await self?.handleAuthTokenExpired()
+            }
+        }
+    }
+
+    private func handleAuthTokenExpired() async {
+        try? await authService.signOut()
+        currentUser = nil
+        currentStack = nil
+        onboardingCompleted = false
+        clearPersistedState()
     }
 }
 

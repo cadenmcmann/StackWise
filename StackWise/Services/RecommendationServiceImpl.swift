@@ -1,14 +1,14 @@
 import Foundation
 
-// MARK: - RealRecommendationService
-public class RealRecommendationService: RecommendationService {
+// MARK: - RecommendationServiceImpl
+public class RecommendationServiceImpl: RecommendationService {
     private let networkManager = NetworkManager.shared
     
     public init() {}
     
     public func startStackGeneration(intake: Intake) async throws -> String {
         // First, save the preferences
-        let preferencesService = RealPreferencesService()
+        let preferencesService = PreferencesServiceImpl()
         try await preferencesService.savePreferences(intake)
         
         // Start async generation
@@ -59,8 +59,7 @@ public class RealRecommendationService: RecommendationService {
     }
     
     public func remixStack(currentStack: Stack, options: RemixOptions) async throws -> Stack {
-        // For now, remix just regenerates the stack
-        // TODO: Implement actual remix logic when API supports it
+        // Remix regenerates a new stack, then applies client-side filtering based on user options
         let response = try await networkManager.request(
             endpoint: "stack/generate",
             method: "POST",
@@ -126,3 +125,4 @@ public class RealRecommendationService: RecommendationService {
         )
     }
 }
+

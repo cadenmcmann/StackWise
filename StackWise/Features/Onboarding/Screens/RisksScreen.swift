@@ -4,7 +4,7 @@ import SwiftUI
 struct RisksScreen: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @State private var selectedRisks: Set<Risk> = []
-    @State private var showHardStopAlert = false
+    @State private var showConsultationAlert = false
     
     var body: some View {
         VStack(spacing: 0) {
@@ -64,19 +64,6 @@ struct RisksScreen: View {
                         }
                     }
                     
-                    // Warning banners for selected risks
-                    if !selectedRisks.isEmpty {
-                        VStack(spacing: Theme.Spacing.md) {
-                            ForEach(Array(selectedRisks), id: \.self) { risk in
-                                Banner(
-                                    type: risk.isHardStop ? .danger : .warning,
-                                    title: risk.isHardStop ? "Important Notice" : "Adjustment Made",
-                                    message: risk.warningMessage
-                                )
-                            }
-                        }
-                        .padding(.top, Theme.Spacing.lg)
-                    }
                 }
                 .padding(Theme.Spacing.gutter)
             }
@@ -93,8 +80,8 @@ struct RisksScreen: View {
                     title: "Next",
                     action: {
                         saveRisks()
-                        if hasHardStopRisk() {
-                            showHardStopAlert = true
+                        if !selectedRisks.isEmpty {
+                            showConsultationAlert = true
                         } else {
                             viewModel.nextStep()
                         }
@@ -107,15 +94,12 @@ struct RisksScreen: View {
         .onAppear {
             selectedRisks = viewModel.intake.risks
         }
-        .alert("Unable to Continue", isPresented: $showHardStopAlert) {
-            Button("Download Summary", role: .none) {
-                Task {
-                    _ = await viewModel.exportSummaryForClinician()
-                }
+        .alert("Recommendation", isPresented: $showConsultationAlert) {
+            Button("Continue") {
+                viewModel.nextStep()
             }
-            Button("OK", role: .cancel) { }
         } message: {
-            Text("Based on your selections, we cannot safely recommend supplements. Please consult with your healthcare provider. You can download a summary to share with them.")
+            Text("We strongly recommend consulting with a healthcare provider before starting any supplement regimen recommended by our app.")
         }
     }
     
@@ -139,9 +123,6 @@ struct RisksScreen: View {
         viewModel.intake.risks = selectedRisks
     }
     
-    private func hasHardStopRisk() -> Bool {
-        selectedRisks.contains { $0.isHardStop }
-    }
 }
 
 // MARK: - RiskToggleRow
@@ -152,17 +133,9 @@ struct RiskToggleRow: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                Text(risk.rawValue)
-                    .font(Theme.Typography.body)
-                    .foregroundColor(Theme.Colors.textPrimary)
-                
-                if risk.isHardStop {
-                    Text("Requires medical consultation")
-                        .font(Theme.Typography.caption)
-                        .foregroundColor(Theme.Colors.danger)
-                }
-            }
+            Text(risk.rawValue)
+                .font(Theme.Typography.body)
+                .foregroundColor(Theme.Colors.textPrimary)
             
             Spacer()
             
@@ -172,6 +145,7 @@ struct RiskToggleRow: View {
         }
         .padding(.vertical, Theme.Spacing.sm)
         .contentShape(Rectangle())
+        .sensoryFeedback(.selection, trigger: isSelected)
         .onTapGesture { onToggle() }
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
-// MARK: - RealPreferencesService
-public class RealPreferencesService: PreferencesService {
+// MARK: - PreferencesServiceImpl
+public class PreferencesServiceImpl: PreferencesService {
     private let networkManager = NetworkManager.shared
     
     public init() {}
@@ -27,22 +27,33 @@ public class RealPreferencesService: PreferencesService {
                 responseType: PreferencesResponse.self
             )
             
+            #if DEBUG
             print("✅ Fetched preferences successfully")
+            #endif
             let intake = response.preferences.toIntake()
+            #if DEBUG
             print("📋 Converted to intake - goals: \(intake.goals.count), age: \(intake.basics.age), priority: \(intake.topPriorityText)")
+            #endif
             return intake
         } catch {
             // If 404 (no preferences), return nil - handle both error types
             if case NetworkError.httpError(let statusCode) = error, statusCode == 404 {
+                #if DEBUG
                 print("ℹ️ No preferences found (404 httpError)")
+                #endif
                 return nil
             }
             if case NetworkError.apiError(_, let statusCode) = error, statusCode == 404 {
+                #if DEBUG
                 print("ℹ️ No preferences found (404 apiError)")
+                #endif
                 return nil
             }
+            #if DEBUG
             print("❌ Failed to fetch preferences: \(error)")
+            #endif
             throw error
         }
     }
 }
+

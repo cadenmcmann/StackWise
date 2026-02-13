@@ -27,6 +27,7 @@ public struct AuthResponse: Codable {
     public let user: APIUser
     public let hasActiveStack: Bool
     public let needsOnboarding: Bool
+    public let linkedExistingAccount: Bool?
 }
 
 public struct APIUser: Codable {
@@ -93,6 +94,11 @@ public struct UpdateProfileResponse: Codable {
     public let message: String
 }
 
+public struct DeactivateAccountResponse: Codable {
+    let success: Bool
+    let message: String
+}
+
 // MARK: - Preferences Models
 
 public struct PreferencesRequest: Codable {
@@ -103,8 +109,10 @@ public struct PreferencesRequest: Codable {
     let weightKg: Int?
     let bodyFatPct: Double?
     let stimulantTolerance: String?
-    let budgetUsd: Int?
     let priorityText: String?
+    let isOver18: Bool?
+    let acceptsDisclaimer: Bool?
+    let consentAcceptedAt: String?
 }
 
 public struct PreferencesResponse: Codable {
@@ -122,7 +130,6 @@ public struct APIPreferences: Codable {
     let weightKg: Int?
     let bodyFatPct: Double?  // API returns as number
     let stimulantTolerance: String?
-    let budgetUsd: Int?
     let priorityText: String?
     let updatedAt: String?
 }
@@ -322,8 +329,7 @@ extension APIPreferences {
             height: Double(heightCm ?? 170),
             weight: Double(weightKg ?? 70),
             bodyFat: bodyFatPct,
-            stimulantTolerance: mapStimulantTolerance(stimulantTolerance),
-            budgetPerMonth: Double(budgetUsd ?? 100)
+            stimulantTolerance: mapStimulantTolerance(stimulantTolerance)
         )
         
         intake.topPriorityText = priorityText ?? ""
@@ -365,8 +371,10 @@ extension Intake {
             weightKg: Int(basics.weight),
             bodyFatPct: basics.bodyFat,
             stimulantTolerance: basics.stimulantTolerance.rawValue.lowercased(),
-            budgetUsd: Int(basics.budgetPerMonth),
-            priorityText: topPriorityText.isEmpty ? nil : topPriorityText
+            priorityText: topPriorityText.isEmpty ? nil : topPriorityText,
+            isOver18: isOver18Confirmed,
+            acceptsDisclaimer: acceptsDisclaimerConfirmed,
+            consentAcceptedAt: consentAcceptedAt.map { ISO8601DateFormatter().string(from: $0) }
         )
     }
 }
@@ -412,14 +420,13 @@ extension APIUser {
             phoneNumber: phoneNumber,
             firstName: firstName,
             lastName: lastName,
-            createdAt: createdAt.flatMap { ISO8601DateFormatter().date(from: $0) },
+            createdAt: createdAt?.iso8601Date,
             // Default values for required preference fields
             age: 25,
             sex: .other,
             height: 170,
             weight: 70,
-            stimulantTolerance: .moderate,
-            budgetPerMonth: 100
+            stimulantTolerance: .moderate
         )
         
         // If preferences are provided, use them to update the user
@@ -430,7 +437,6 @@ extension APIUser {
             user.weight = Double(preferences.weightKg ?? Int(user.weight))
             user.bodyFat = preferences.bodyFatPct
             user.stimulantTolerance = mapStimulantTolerance(preferences.stimulantTolerance)
-            user.budgetPerMonth = Double(preferences.budgetUsd ?? Int(user.budgetPerMonth))
         }
         
         return user

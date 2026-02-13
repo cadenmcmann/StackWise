@@ -4,6 +4,7 @@ import Foundation
 public protocol AuthService {
     // Apple Sign In
     func signInApple() async throws -> User
+    func signInApple(identityToken: String, authorizationCode: String?, email: String?) async throws -> User
     
     // Email/Phone + Password Authentication
     func signInEmail(email: String, password: String) async throws -> User
@@ -19,6 +20,7 @@ public protocol AuthService {
     
     // Profile Management
     func updateProfile(firstName: String?, lastName: String?, phoneNumber: String?) async throws -> User
+    func deleteAccount() async throws
     
     // Session Management
     func signOut() async throws

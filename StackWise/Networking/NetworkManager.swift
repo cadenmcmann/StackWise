@@ -4,7 +4,7 @@ import Foundation
 public class NetworkManager {
     static let shared = NetworkManager()
     
-    private let baseURL = "https://7pcymt07l8.execute-api.us-east-1.amazonaws.com/"
+    private let baseURL = AppConfig.apiBaseURL
     private let session: URLSession
     
     private init() {
@@ -18,13 +18,13 @@ public class NetworkManager {
     
     private var authToken: String? {
         get {
-            UserDefaults.standard.string(forKey: "auth_token")
+            SecureStorage.shared.getString(for: SecureStorageKeys.authToken)
         }
         set {
             if let token = newValue {
-                UserDefaults.standard.set(token, forKey: "auth_token")
+                SecureStorage.shared.setString(token, for: SecureStorageKeys.authToken)
             } else {
-                UserDefaults.standard.removeObject(forKey: "auth_token")
+                SecureStorage.shared.deleteValue(for: SecureStorageKeys.authToken)
             }
         }
     }
@@ -127,6 +127,11 @@ public class NetworkManager {
         
         // Check for errors
         if httpResponse.statusCode >= 400 {
+            if requiresAuth && httpResponse.statusCode == 401 {
+                clearAuthToken()
+                NotificationCenter.default.post(name: .authTokenExpired, object: nil)
+            }
+
             if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: data) {
                 throw NetworkError.apiError(message: errorResponse.error, statusCode: httpResponse.statusCode)
             } else {
@@ -140,8 +145,10 @@ public class NetworkManager {
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             return try decoder.decode(T.self, from: data)
         } catch {
+            #if DEBUG
             print("Decoding error: \(error)")
             print("Response data: \(String(data: data, encoding: .utf8) ?? "nil")")
+            #endif
             throw NetworkError.decodingError(error)
         }
     }
@@ -179,4 +186,8 @@ public enum NetworkError: LocalizedError {
 
 struct ErrorResponse: Codable {
     let error: String
+}
+
+extension Notification.Name {
+    static let authTokenExpired = Notification.Name("NetworkManagerAuthTokenExpired")
 }

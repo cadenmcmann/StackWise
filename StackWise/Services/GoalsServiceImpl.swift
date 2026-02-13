@@ -1,7 +1,7 @@
 import Foundation
 
-// MARK: - RealGoalsService
-public class RealGoalsService: GoalsService {
+// MARK: - GoalsServiceImpl
+public class GoalsServiceImpl: GoalsService {
     private let networkManager = NetworkManager.shared
     private var cachedGoals: [Goal] = []
     
@@ -24,3 +24,4 @@ public class RealGoalsService: GoalsService {
         return response.goals
     }
 }
+

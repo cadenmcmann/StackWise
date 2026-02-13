@@ -38,29 +38,18 @@ public struct ChatSession: Identifiable, Codable {
 // MARK: - API Conversions
 extension APIChatSession {
     func toChatSession() -> ChatSession {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
-        let createdDate = formatter.date(from: createdAt) ?? Date()
-        let updatedDate = formatter.date(from: updatedAt) ?? Date()
-        
         return ChatSession(
             id: id,
             userId: userId,
             title: title,
-            createdAt: createdDate,
-            updatedAt: updatedDate
+            createdAt: createdAt.iso8601Date ?? Date(),
+            updatedAt: updatedAt.iso8601Date ?? Date()
         )
     }
 }
 
 extension APIChatMessage {
     func toMessage() -> Message {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
-        let date = formatter.date(from: createdAt) ?? Date()
-        
         let messageRole: Message.Role = {
             switch role.lowercased() {
             case "user": return .user
@@ -74,7 +63,7 @@ extension APIChatMessage {
             id: id,
             role: messageRole,
             text: content,
-            createdAt: date
+            createdAt: createdAt.iso8601Date ?? Date()
         )
     }
 }

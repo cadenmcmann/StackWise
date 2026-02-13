@@ -96,6 +96,7 @@ struct SupplementDetailSheet: View {
                             Toggle("", isOn: $isActive)
                                 .labelsHidden()
                                 .tint(Theme.Colors.primary)
+                                .sensoryFeedback(.selection, trigger: isActive)
                                 .onChange(of: isActive) { _, newValue in
                                     Task {
                                         await onToggleActive(newValue)
@@ -116,6 +117,25 @@ struct SupplementDetailSheet: View {
                     }
                     .padding(Theme.Spacing.lg)
                     .background(Theme.Colors.surfaceAlt.opacity(0.5))
+                    .padding(.horizontal, Theme.Spacing.gutter)
+                    .padding(.bottom, Theme.Spacing.lg)
+
+                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                        Text("Safety Notice")
+                            .font(Theme.Typography.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Theme.Colors.textPrimary)
+
+                        Text("This information is educational and not medical advice. Consult a physician or pharmacist before starting or changing supplements, especially if you are pregnant, nursing, have a medical condition, or take medications.")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Colors.textSecondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(Theme.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Theme.Radii.md)
+                            .fill(Theme.Colors.surfaceAlt)
+                    )
                     .padding(.horizontal, Theme.Spacing.gutter)
                     .padding(.bottom, Theme.Spacing.lg)
                     

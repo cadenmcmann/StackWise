@@ -14,9 +14,7 @@ public enum ForgotPasswordStep {
 public class ForgotPasswordViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published public var currentStep = ForgotPasswordStep.contactInput
-    @Published public var contactMethod = ContactMethod.email
     @Published public var email = ""
-    @Published public var phoneNumber = ""
     @Published public var verificationCode = ""
     @Published public var newPassword = ""
     @Published public var confirmPassword = ""
@@ -24,10 +22,6 @@ public class ForgotPasswordViewModel: ObservableObject {
     @Published public var error: Error?
     @Published public var showError = false
     @Published public var errorMessage = ""
-    
-    // Countdown timer state
-    @Published public var codeExpirationTime = 600 // 10 minutes in seconds
-    @Published public var resendCooldown = 0
     
     // Skip password flow
     @Published public var shouldSkipPasswordReset = false
@@ -40,23 +34,10 @@ public class ForgotPasswordViewModel: ObservableObject {
     }
     
     // MARK: - Computed Properties
-    public var contactValue: String {
-        contactMethod == .email ? email : phoneNumber
-    }
-    
-    public var formattedPhoneNumber: String {
-        guard contactMethod == .phone else { return "" }
-        return "+1" + phoneNumber.filter { $0.isNumber }
-    }
-    
     public var isContactValid: Bool {
-        if contactMethod == .email {
-            let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
-            let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
-            return emailPred.evaluate(with: email)
-        } else {
-            return phoneNumber.filter { $0.isNumber }.count >= 10
-        }
+        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
+        return emailPred.evaluate(with: email)
     }
     
     public var passwordsMatch: Bool {
@@ -75,15 +56,14 @@ public class ForgotPasswordViewModel: ObservableObject {
         
         do {
             let response = try await container.services.authService.sendVerificationCode(
-                email: contactMethod == .email ? email : nil,
-                phoneNumber: contactMethod == .phone ? formattedPhoneNumber : nil,
+                email: email,
+                phoneNumber: nil,
                 purpose: "password_reset"
             )
             
             if response.success {
                 withAnimation(Theme.Animation.standard) {
                     currentStep = .verifyCode
-                    codeExpirationTime = 600 // Reset timer
                 }
             } else {
                 errorMessage = response.message
@@ -108,18 +88,19 @@ public class ForgotPasswordViewModel: ObservableObject {
         
         do {
             let response = try await container.services.authService.sendVerificationCode(
-                email: contactMethod == .email ? email : nil,
-                phoneNumber: contactMethod == .phone ? formattedPhoneNumber : nil,
+                email: email,
+                phoneNumber: nil,
                 purpose: "password_reset"
             )
             
             if response.success {
-                codeExpirationTime = 600 // Reset timer
-                resendCooldown = 30 // 30 second cooldown
+                // CountdownTimer component handles its own state reset
             }
         } catch {
             // Silently fail for resend
+            #if DEBUG
             print("Resend failed: \(error)")
+            #endif
         }
         
         isLoading = false
@@ -132,8 +113,8 @@ public class ForgotPasswordViewModel: ObservableObject {
         
         do {
             _ = try await container.services.authService.verifyCode(
-                email: contactMethod == .email ? email : nil,
-                phoneNumber: contactMethod == .phone ? formattedPhoneNumber : nil,
+                email: email,
+                phoneNumber: nil,
                 code: verificationCode,
                 purpose: "password_reset"
             )
@@ -163,8 +144,8 @@ public class ForgotPasswordViewModel: ObservableObject {
         
         do {
             let authResponse = try await container.services.authService.verifyCode(
-                email: contactMethod == .email ? email : nil,
-                phoneNumber: contactMethod == .phone ? formattedPhoneNumber : nil,
+                email: email,
+                phoneNumber: nil,
                 code: verificationCode,
                 purpose: "login"
             )
@@ -192,8 +173,8 @@ public class ForgotPasswordViewModel: ObservableObject {
         
         do {
             try await container.services.authService.resetPassword(
-                email: contactMethod == .email ? email : nil,
-                phoneNumber: contactMethod == .phone ? formattedPhoneNumber : nil,
+                email: email,
+                phoneNumber: nil,
                 code: verificationCode,
                 newPassword: newPassword
             )
@@ -237,7 +218,6 @@ public class ForgotPasswordViewModel: ObservableObject {
     public func reset() {
         currentStep = .contactInput
         email = ""
-        phoneNumber = ""
         verificationCode = ""
         newPassword = ""
         confirmPassword = ""

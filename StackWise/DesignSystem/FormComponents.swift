@@ -94,6 +94,7 @@ public struct CustomSlider: View {
             Slider(value: $value, in: range, step: step)
                 .tint(Theme.Colors.primary)
         }
+        .sensoryFeedback(.selection, trigger: value)
     }
 }
 
@@ -129,6 +130,7 @@ public struct CustomToggle: View {
             }
         }
         .tint(Theme.Colors.primary)
+        .sensoryFeedback(.selection, trigger: isOn)
     }
 }
 

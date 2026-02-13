@@ -1,7 +1,7 @@
 import Foundation
 
-// MARK: - RealChatService
-public class RealChatService: ChatService {
+// MARK: - ChatServiceImpl
+public class ChatServiceImpl: ChatService {
     private let networkManager = NetworkManager.shared
     private var currentSessionId: String?
     private var cachedSessions: [ChatSession] = []
@@ -40,7 +40,7 @@ public class RealChatService: ChatService {
             id: response.messageId,
             role: .assistant,
             text: response.content,
-            createdAt: ISO8601DateFormatter().date(from: response.createdAt) ?? Date()
+            createdAt: response.createdAt.iso8601Date ?? Date()
         )
         
         // Update cached messages
@@ -82,14 +82,11 @@ public class RealChatService: ChatService {
             )
         }
         
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        
         let session = ChatSession(
             id: response.sessionId,
             title: response.title,
-            createdAt: formatter.date(from: response.createdAt) ?? Date(),
-            updatedAt: formatter.date(from: response.createdAt) ?? Date()
+            createdAt: response.createdAt.iso8601Date ?? Date(),
+            updatedAt: response.createdAt.iso8601Date ?? Date()
         )
         
         // Add to cached sessions
@@ -210,3 +207,4 @@ private struct ChatCache: Codable {
     let sessions: [ChatSession]
     let messages: [String: [Message]]
 }
+

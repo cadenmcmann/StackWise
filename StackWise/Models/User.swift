@@ -17,7 +17,6 @@ public struct User: Identifiable, Codable {
     public var weight: Double // in kg
     public var bodyFat: Double?
     public var stimulantTolerance: StimulantTolerance
-    public var budgetPerMonth: Double
     
     public enum Sex: String, Codable, CaseIterable {
         case male = "Male"
@@ -44,8 +43,7 @@ public struct User: Identifiable, Codable {
         height: Double,
         weight: Double,
         bodyFat: Double? = nil,
-        stimulantTolerance: StimulantTolerance,
-        budgetPerMonth: Double
+        stimulantTolerance: StimulantTolerance
     ) {
         self.id = id
         self.email = email
@@ -59,7 +57,6 @@ public struct User: Identifiable, Codable {
         self.weight = weight
         self.bodyFat = bodyFat
         self.stimulantTolerance = stimulantTolerance
-        self.budgetPerMonth = budgetPerMonth
     }
     
     // Computed property for display name

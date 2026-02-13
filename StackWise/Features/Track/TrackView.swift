@@ -14,73 +14,87 @@ public struct TrackView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                ScrollView {
-                    VStack(spacing: Theme.Spacing.xl) {
-                        // Week navigation and calendar
-                        VStack(spacing: Theme.Spacing.lg) {
-                            // Week navigation
-                            HStack {
-                                Button {
-                                    viewModel.navigateWeek(forward: false)
-                                } label: {
-                                    Image(systemName: "chevron.left")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(Theme.Colors.primary)
-                                }
-                                
-                                Spacer()
-                                
-                                VStack(spacing: Theme.Spacing.xs) {
-                                    Text(viewModel.weekDateRange)
-                                        .font(Theme.Typography.subhead)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(Theme.Colors.textPrimary)
-                                    
-                                    if viewModel.isCurrentWeek {
-                                        Text("Current Week")
-                                            .font(Theme.Typography.caption)
+                if viewModel.showError {
+                    EmptyState(
+                        icon: "exclamationmark.triangle",
+                        title: "Unable to Load",
+                        subtitle: viewModel.errorMessage,
+                        primaryAction: {
+                            Task {
+                                await viewModel.retry()
+                            }
+                        },
+                        primaryActionTitle: "Try Again"
+                    )
+                } else {
+                    ScrollView {
+                        VStack(spacing: Theme.Spacing.xl) {
+                            // Week navigation and calendar
+                            VStack(spacing: Theme.Spacing.lg) {
+                                // Week navigation
+                                HStack {
+                                    Button {
+                                        viewModel.navigateWeek(forward: false)
+                                    } label: {
+                                        Image(systemName: "chevron.left")
+                                            .font(.system(size: 16, weight: .semibold))
                                             .foregroundColor(Theme.Colors.primary)
                                     }
+                                    
+                                    Spacer()
+                                    
+                                    VStack(spacing: Theme.Spacing.xs) {
+                                        Text(viewModel.weekDateRange)
+                                            .font(Theme.Typography.subhead)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(Theme.Colors.textPrimary)
+                                        
+                                        if viewModel.isCurrentWeek {
+                                            Text("Current Week")
+                                                .font(Theme.Typography.caption)
+                                                .foregroundColor(Theme.Colors.primary)
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Button {
+                                        viewModel.navigateWeek(forward: true)
+                                    } label: {
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(Theme.Colors.primary)
+                                    }
+                                    .disabled(viewModel.isCurrentWeek)
                                 }
+                                .padding(.horizontal, Theme.Spacing.gutter)
                                 
-                                Spacer()
-                                
-                                Button {
-                                    viewModel.navigateWeek(forward: true)
-                                } label: {
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(Theme.Colors.primary)
-                                }
-                                .disabled(viewModel.isCurrentWeek)
+                                // Weekly calendar
+                                WeeklyCalendarView(
+                                    currentWeekStartDate: viewModel.currentWeekStartDate,
+                                    selectedDate: viewModel.selectedDate,
+                                    viewModel: viewModel,
+                                    intakeLogManager: intakeLogManager
+                                )
                             }
-                            .padding(.horizontal, Theme.Spacing.gutter)
                             
-                            // Weekly calendar
-                            WeeklyCalendarView(
-                                currentWeekStartDate: viewModel.currentWeekStartDate,
-                                selectedDate: viewModel.selectedDate,
-                                viewModel: viewModel,
-                                intakeLogManager: intakeLogManager
-                            )
+                            // Show supplements for selected date
+                            if let selectedDate = viewModel.selectedDate {
+                                DaySupplementsView(
+                                    date: selectedDate,
+                                    viewModel: viewModel,
+                                    intakeLogManager: intakeLogManager,
+                                    container: container
+                                )
+                                .transition(.asymmetric(
+                                    insertion: .scale.combined(with: .opacity),
+                                    removal: .scale.combined(with: .opacity)
+                                ))
+                                .animation(Theme.Animation.quick, value: selectedDate)
+                            }
                         }
-                        
-                        // Show supplements for selected date
-                        if let selectedDate = viewModel.selectedDate {
-                            DaySupplementsView(
-                                date: selectedDate,
-                                viewModel: viewModel,
-                                intakeLogManager: intakeLogManager,
-                                container: container
-                            )
-                            .transition(.asymmetric(
-                                insertion: .scale.combined(with: .opacity),
-                                removal: .scale.combined(with: .opacity)
-                            ))
-                            .animation(Theme.Animation.quick, value: selectedDate)
-                        }
+                        .padding(.vertical, Theme.Spacing.lg)
                     }
-                    .padding(.vertical, Theme.Spacing.lg)
                 }
                 
                 if viewModel.isLoading {
@@ -149,18 +163,6 @@ struct DayCell: View {
     let isSelected: Bool
     let isToday: Bool
     
-    private var dayFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E"
-        return formatter
-    }
-    
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter
-    }
-    
     private var fillColor: Color {
         if completion >= 1.0 {
             return Theme.Colors.success
@@ -173,7 +175,7 @@ struct DayCell: View {
     
     var body: some View {
         VStack(spacing: Theme.Spacing.sm) {
-            Text(dayFormatter.string(from: date))
+            Text(date.shortWeekday)
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Colors.textSecondary)
             
@@ -193,7 +195,7 @@ struct DayCell: View {
                         .animation(Theme.Animation.quick, value: isSelected)
                 }
                 
-                Text(dateFormatter.string(from: date))
+                Text(date.dayNumber)
                     .font(Theme.Typography.body)
                     .fontWeight(isToday ? .bold : .regular)
                     .foregroundColor(isToday ? Theme.Colors.primary : Theme.Colors.textPrimary)
@@ -216,12 +218,6 @@ struct DaySupplementsView: View {
     @ObservedObject var viewModel: TrackViewModel
     @ObservedObject var intakeLogManager: IntakeLogManager
     let container: DIContainer
-    
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d"
-        return formatter
-    }
     
     private var timeIcon: String {
         switch "morning" {
@@ -263,7 +259,7 @@ struct DaySupplementsView: View {
             // Header
             HStack {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
-                    Text(dateFormatter.string(from: date))
+                    Text(date.fullDateString)
                         .font(Theme.Typography.subhead)
                         .fontWeight(.semibold)
                         .foregroundColor(Theme.Colors.textPrimary)

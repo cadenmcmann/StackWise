@@ -4,6 +4,7 @@ import SwiftUI
 struct GeneratingScreen: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @State private var animationPhase = 0
+    @State private var messageTimer: Timer?
     
     var loadingMessages: [String] {
         if viewModel.container.isRemixFlow {
@@ -92,12 +93,17 @@ struct GeneratingScreen: View {
         .background(Theme.Colors.surface)
         .onAppear {
             // Cycle through loading messages
-            Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
+            messageTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { _ in
                 withAnimation {
                     // This will cause a re-render with a new random message
                     animationPhase = animationPhase == 0 ? 1 : 0
                 }
             }
+        }
+        .onDisappear {
+            // Invalidate timer to prevent memory leak
+            messageTimer?.invalidate()
+            messageTimer = nil
         }
     }
 }

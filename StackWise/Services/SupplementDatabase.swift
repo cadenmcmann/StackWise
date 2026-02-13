@@ -28,7 +28,10 @@ public class SupplementDatabase {
                 scientificFunction: "Creatine increases phosphocreatine stores in muscles, enabling rapid ATP regeneration during high-intensity activities. This provides more immediate energy for muscle contractions during resistance training and explosive movements. It also increases cellular hydration, which may stimulate protein synthesis and muscle growth.",
                 timingTags: ["morning", "afternoon"],
                 stimulantFree: true,
-                citations: ["https://www.example.com/"]
+                citations: [
+                    "https://pubmed.ncbi.nlm.nih.gov/28615996/",
+                    "https://pubmed.ncbi.nlm.nih.gov/12701816/"
+                ]
             ),
             SupplementInfo(
                 id: "85dec638-40b9-4bb5-92c1-ffd2d754f0b8",
@@ -38,7 +41,10 @@ public class SupplementDatabase {
                 scientificFunction: "Magnesium regulates neurotransmitters that promote relaxation and sleep, particularly GABA receptors. It acts as a natural calcium blocker to help muscles relax and supports the parasympathetic nervous system. The glycinate chelate form enhances absorption and reduces digestive discomfort compared to other magnesium forms.",
                 timingTags: ["evening", "night"],
                 stimulantFree: true,
-                citations: ["https://www.example.com/"]
+                citations: [
+                    "https://pubmed.ncbi.nlm.nih.gov/23853635/",
+                    "https://pubmed.ncbi.nlm.nih.gov/20394667/"
+                ]
             ),
             SupplementInfo(
                 id: "eb676f01-7ad2-4349-9665-d586059f774f",
@@ -48,7 +54,10 @@ public class SupplementDatabase {
                 scientificFunction: "L-Theanine increases alpha brain wave activity associated with relaxed alertness. It modulates neurotransmitters including GABA, serotonin, and dopamine to promote calm without drowsiness. When combined with caffeine, it smooths out stimulant effects while enhancing focus and attention.",
                 timingTags: ["morning", "afternoon"],
                 stimulantFree: true,
-                citations: ["https://www.example.com/"]
+                citations: [
+                    "https://pubmed.ncbi.nlm.nih.gov/18296328/",
+                    "https://pubmed.ncbi.nlm.nih.gov/17182482/"
+                ]
             ),
             SupplementInfo(
                 id: "91728e54-3c5a-42bf-8f88-22ef7233293a",
@@ -58,7 +67,10 @@ public class SupplementDatabase {
                 scientificFunction: "Ashwagandha modulates the hypothalamic-pituitary-adrenal (HPA) axis to regulate cortisol production and stress response. It acts on GABA receptors to promote relaxation and supports healthy testosterone levels by reducing cortisol interference. The withanolides in KSM-66 extract have neuroprotective and anti-inflammatory properties.",
                 timingTags: ["morning", "evening"],
                 stimulantFree: true,
-                citations: ["https://www.example.com/"]
+                citations: [
+                    "https://pubmed.ncbi.nlm.nih.gov/31517876/",
+                    "https://pubmed.ncbi.nlm.nih.gov/26609282/"
+                ]
             ),
             SupplementInfo(
                 id: "436ed0d2-eebe-430e-9309-2b2e8fb859cc",
@@ -68,18 +80,24 @@ public class SupplementDatabase {
                 scientificFunction: "Whey protein is rich in branched-chain amino acids (BCAAs), particularly leucine, which directly triggers muscle protein synthesis through the mTOR pathway. Its rapid digestion and absorption make it ideal for post-workout consumption when muscles are primed for nutrient uptake. The high biological value ensures efficient utilization of amino acids for tissue repair.",
                 timingTags: ["afternoon", "morning"],
                 stimulantFree: true,
-                citations: ["https://www.example.com/"]
+                citations: [
+                    "https://pubmed.ncbi.nlm.nih.gov/25086516/",
+                    "https://pubmed.ncbi.nlm.nih.gov/24299050/"
+                ]
             ),
             // Add Vitamin D3 which might be in some stacks
             SupplementInfo(
-                id: "vitamin-d3-placeholder",
+                id: "ae85d7fb-4b9d-4f6a-897f-8f9ce767d191",
                 name: "Vitamin D3",
                 purposeShort: "Supports immune function, bone health, and mood regulation",
                 purposeLong: "Vitamin D3 (cholecalciferol) is essential for calcium absorption, bone health, immune system function, and mental well-being. Many people are deficient, especially in winter months or with limited sun exposure.",
                 scientificFunction: "Vitamin D3 acts as a hormone in the body, binding to vitamin D receptors found in nearly every cell. It regulates calcium and phosphate absorption in the intestines, modulates immune cell function, and influences the expression of genes involved in cell proliferation and differentiation.",
                 timingTags: ["morning"],
                 stimulantFree: true,
-                citations: ["https://www.example.com/"]
+                citations: [
+                    "https://pubmed.ncbi.nlm.nih.gov/21154195/",
+                    "https://pubmed.ncbi.nlm.nih.gov/28213702/"
+                ]
             )
         ]
         

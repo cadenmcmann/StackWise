@@ -6,17 +6,26 @@ public struct Intake: Codable {
     public var basics: Basics
     public var risks: Set<Risk>
     public var topPriorityText: String
+    public var isOver18Confirmed: Bool?
+    public var acceptsDisclaimerConfirmed: Bool?
+    public var consentAcceptedAt: Date?
     
     public init(
         goals: Set<Goal> = [],
         basics: Basics = Basics(),
         risks: Set<Risk> = [],
-        topPriorityText: String = ""
+        topPriorityText: String = "",
+        isOver18Confirmed: Bool? = nil,
+        acceptsDisclaimerConfirmed: Bool? = nil,
+        consentAcceptedAt: Date? = nil
     ) {
         self.goals = goals
         self.basics = basics
         self.risks = risks
         self.topPriorityText = topPriorityText
+        self.isOver18Confirmed = isOver18Confirmed
+        self.acceptsDisclaimerConfirmed = acceptsDisclaimerConfirmed
+        self.consentAcceptedAt = consentAcceptedAt
     }
 }
 
@@ -80,7 +89,6 @@ public struct Basics: Codable {
     public var weight: Double // kg
     public var bodyFat: Double?
     public var stimulantTolerance: User.StimulantTolerance
-    public var budgetPerMonth: Double
     
     public init(
         age: Int = 0,
@@ -88,8 +96,7 @@ public struct Basics: Codable {
         height: Double = 0,
         weight: Double = 0,
         bodyFat: Double? = nil,
-        stimulantTolerance: User.StimulantTolerance = .moderate,
-        budgetPerMonth: Double = 100
+        stimulantTolerance: User.StimulantTolerance = .moderate
     ) {
         self.age = age
         self.sex = sex
@@ -97,7 +104,6 @@ public struct Basics: Codable {
         self.weight = weight
         self.bodyFat = bodyFat
         self.stimulantTolerance = stimulantTolerance
-        self.budgetPerMonth = budgetPerMonth
     }
 }
 
@@ -116,41 +122,4 @@ public enum Risk: String, Codable, CaseIterable {
     case cancer = "Cancer Treatment"
     case autoimmune = "Autoimmune Condition"
     
-    public var warningMessage: String {
-        switch self {
-        case .bloodPressureMeds:
-            return "We'll avoid supplements that may affect blood pressure."
-        case .bloodThinners:
-            return "We'll exclude supplements with blood-thinning effects."
-        case .antidepressants:
-            return "We'll avoid supplements that interact with serotonin."
-        case .anxietyMeds:
-            return "We'll exclude supplements that may affect GABA."
-        case .diabetesMeds:
-            return "We'll avoid supplements that affect blood sugar."
-        case .thyroidMeds:
-            return "We'll exclude supplements that interact with thyroid function."
-        case .heartCondition:
-            return "We'll avoid stimulants and cardiovascular supplements."
-        case .kidneyDisease:
-            return "We'll limit supplements that are processed by kidneys."
-        case .liverDisease:
-            return "We'll avoid supplements metabolized by the liver."
-        case .pregnancy:
-            return "We'll only recommend pregnancy-safe supplements."
-        case .cancer:
-            return "We'll avoid supplements that may interfere with treatment."
-        case .autoimmune:
-            return "We'll exclude immune-stimulating supplements."
-        }
-    }
-    
-    public var isHardStop: Bool {
-        switch self {
-        case .pregnancy, .cancer, .kidneyDisease, .liverDisease:
-            return true
-        default:
-            return false
-        }
-    }
 }

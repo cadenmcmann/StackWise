@@ -14,7 +14,19 @@ public struct StackView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                if let stack = viewModel.stack {
+                if viewModel.showError {
+                    EmptyState(
+                        icon: "exclamationmark.triangle",
+                        title: "Unable to Load",
+                        subtitle: viewModel.errorMessage,
+                        primaryAction: {
+                            Task {
+                                await viewModel.retry()
+                            }
+                        },
+                        primaryActionTitle: "Try Again"
+                    )
+                } else if let stack = viewModel.stack {
                     ScrollView {
                         VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                             // Active supplements
@@ -65,6 +77,27 @@ public struct StackView: View {
                                     }
                                 }
                             }
+
+                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                                Text("AI-generated educational content")
+                                    .font(Theme.Typography.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(Theme.Colors.textPrimary)
+
+                                Text("Recommendations are AI-generated and may contain inaccuracies. StackWise provides educational information only and is not medical advice.")
+                                    .font(Theme.Typography.caption)
+                                    .foregroundColor(Theme.Colors.textSecondary)
+
+                                Text("These statements have not been evaluated by the Food and Drug Administration. This product is not intended to diagnose, treat, cure, or prevent any disease.")
+                                    .font(Theme.Typography.caption)
+                                    .foregroundColor(Theme.Colors.textSecondary)
+                            }
+                            .padding(Theme.Spacing.md)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radii.md)
+                                    .fill(Theme.Colors.surfaceAlt)
+                            )
+                            .padding(.horizontal, Theme.Spacing.gutter)
                             
                             // Remix Stack button
                             SecondaryButton(
@@ -103,15 +136,20 @@ public struct StackView: View {
                 Text("Remixing your stack will generate a new supplement regimen based on updated preferences. Your current stack will be replaced and cannot be recovered.")
             }
             .fullScreenCover(item: $selectedSupplement) { supplement in
-            SupplementDetailSheet(
-                supplement: supplement,
-                stackId: viewModel.stack?.id,
-                initialActiveState: supplement.active,
-                onToggleActive: { newValue in
-                    await viewModel.toggleSupplementActive(supplementId: supplement.id, active: newValue)
-                }
+                SupplementDetailSheet(
+                    supplement: supplement,
+                    stackId: viewModel.stack?.id,
+                    initialActiveState: supplement.active,
+                    onToggleActive: { newValue in
+                        await viewModel.toggleSupplementActive(supplementId: supplement.id, active: newValue)
+                    }
+                )
+            }
+            .toast(
+                isShowing: $viewModel.showErrorToast,
+                message: viewModel.toastMessage,
+                type: .error
             )
-        }
         }
     }
 }
@@ -214,10 +252,8 @@ struct EmptyStateView: View {
             icon: "pills",
             title: "No Stack Generated",
             subtitle: "Complete the onboarding to get your personalized supplement recommendations",
-            primaryAction: {
-                // TODO: Navigate to onboarding
-            },
-            primaryActionTitle: "Get Started"
+            primaryAction: nil,
+            primaryActionTitle: nil
         )
     }
 }

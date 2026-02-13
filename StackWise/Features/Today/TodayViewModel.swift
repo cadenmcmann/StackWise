@@ -13,6 +13,8 @@ public class TodayViewModel: ObservableObject {
     @Published var showReminderSettings = false
     @Published var selectedReminder: Reminder?
     @Published var refreshTrigger = false // Used to force UI updates
+    @Published var showError = false
+    @Published var errorMessage = ""
     
     private let container: DIContainer
     private let trackingService: TrackingService
@@ -79,6 +81,7 @@ public class TodayViewModel: ObservableObject {
     }
     
     func loadTodayData() async {
+        showError = false
         do {
             // Get today's date at start of week
             let calendar = Calendar.current
@@ -92,14 +95,21 @@ public class TodayViewModel: ObservableObject {
             container.intakeLogManager.syncWithAPIData(weeklyData)
             
             // Find today's data
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
-            let todayString = formatter.string(from: today)
+            let todayString = today.apiDateString
             
             todayIntakeData = weeklyData.weekData.first { $0.date == todayString }
         } catch {
+            #if DEBUG
             print("Failed to load today's data: \(error)")
+            #endif
+            errorMessage = "Failed to load today's schedule. Please check your connection and try again."
+            showError = true
         }
+    }
+    
+    func retry() async {
+        await loadReminders()
+        await loadTodayData()
     }
     
     private func generateRemindersFromStack(_ stack: Stack) -> [Reminder] {
@@ -238,7 +248,9 @@ public class TodayViewModel: ObservableObject {
         
         UNUserNotificationCenter.current().add(request) { error in
             if let error = error {
+                #if DEBUG
                 print("Failed to schedule notification: \(error)")
+                #endif
             }
         }
     }

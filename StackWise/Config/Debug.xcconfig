@@ -1,0 +1,7 @@
+// Debug Configuration
+// Used when running from Xcode (Debug builds)
+
+// API Base URL for development/testing
+// Note: Use $() to escape // in URLs
+API_BASE_URL = https:/$()/9f8skioo9f.execute-api.us-east-1.amazonaws.com/
+

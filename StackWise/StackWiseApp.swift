@@ -3,7 +3,7 @@ import SwiftUI
 // MARK: - StackWiseApp
 @main
 struct StackWiseApp: App {
-    @StateObject private var container = DIContainer(useMocks: false) // Using real services
+    @StateObject private var container = DIContainer()
     
     var body: some Scene {
         WindowGroup {
@@ -54,7 +54,9 @@ struct ContentView: View {
                     do {
                         try await container.resumeJobPolling()
                     } catch {
+                        #if DEBUG
                         print("Failed to resume job polling: \(error)")
+                        #endif
                     }
                 }
             }

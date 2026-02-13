@@ -10,6 +10,8 @@ public class TrackViewModel: ObservableObject {
     @Published var currentWeekStartDate = Date()
     @Published var isLoading = false
     @Published var refreshTrigger = false // Used to force UI updates
+    @Published var showError = false
+    @Published var errorMessage = ""
     
     private let container: DIContainer
     private let trackingService: TrackingService
@@ -46,6 +48,7 @@ public class TrackViewModel: ObservableObject {
     
     func loadWeekData() async {
         isLoading = true
+        showError = false
         
         do {
             weeklyIntakeData = try await trackingService.getWeeklyIntake(startDate: currentWeekStartDate)
@@ -55,10 +58,18 @@ public class TrackViewModel: ObservableObject {
                 container.intakeLogManager.syncWithAPIData(data)
             }
         } catch {
+            #if DEBUG
             print("Failed to load tracking data: \(error)")
+            #endif
+            errorMessage = "Failed to load tracking data. Please check your connection and try again."
+            showError = true
         }
         
         isLoading = false
+    }
+    
+    func retry() async {
+        await loadWeekData()
     }
     
     // MARK: - Actions
@@ -114,11 +125,8 @@ public class TrackViewModel: ObservableObject {
             return ""
         }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        
-        let start = formatter.string(from: weekInterval.start)
-        let end = formatter.string(from: weekInterval.end.addingTimeInterval(-1)) // Subtract 1 second to get last day of week
+        let start = weekInterval.start.monthDayString
+        let end = weekInterval.end.addingTimeInterval(-1).monthDayString // Subtract 1 second to get last day of week
         
         return "\(start) - \(end)"
     }
@@ -131,9 +139,7 @@ public class TrackViewModel: ObservableObject {
     func completionForDate(_ date: Date) -> Double {
         guard let weeklyData = weeklyIntakeData else { return 0 }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: date)
+        let dateString = date.apiDateString
         
         if let dayData = weeklyData.weekData.first(where: { $0.date == dateString }) {
             var supplementsToCount = dayData.stackIntakeData
@@ -175,9 +181,7 @@ public class TrackViewModel: ObservableObject {
     func getDayIntakeData(for date: Date) -> DayIntakeData? {
         guard let weeklyData = weeklyIntakeData else { return nil }
         
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: date)
+        let dateString = date.apiDateString
         
         return weeklyData.weekData.first { $0.date == dateString }
     }

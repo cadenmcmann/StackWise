@@ -56,7 +56,7 @@ struct ContactInputView: View {
                         .font(Theme.Typography.titleL)
                         .foregroundColor(Theme.Colors.textPrimary)
                     
-                    Text("Enter your \(viewModel.contactMethod == .email ? "email" : "phone number") and we'll send you a verification code to reset your password")
+                    Text("Enter your email and we'll send you a verification code to reset your password")
                         .font(Theme.Typography.body)
                         .foregroundColor(Theme.Colors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -64,93 +64,37 @@ struct ContactInputView: View {
                 }
                 .padding(.horizontal, Theme.Spacing.gutter)
                 
-                // Contact method toggle
-                ContactMethodToggle(selectedMethod: $viewModel.contactMethod)
-                    .padding(.horizontal, Theme.Spacing.xl)
-                    .onChange(of: viewModel.contactMethod) { _, _ in
-                        // Clear fields when switching
-                        viewModel.email = ""
-                        viewModel.phoneNumber = ""
-                    }
-                
-                // Contact input
-                if viewModel.contactMethod == .email {
-                    // Email input
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        Text("Email")
-                            .font(Theme.Typography.caption)
+                // Email input
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                    Text("Email")
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Colors.textSecondary)
+                    
+                    HStack(spacing: Theme.Spacing.sm) {
+                        Image(systemName: "envelope")
+                            .font(.system(size: 16))
                             .foregroundColor(Theme.Colors.textSecondary)
                         
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "envelope")
-                                .font(.system(size: 16))
-                                .foregroundColor(Theme.Colors.textSecondary)
-                            
-                            TextField("you@example.com", text: $viewModel.email)
-                                .font(Theme.Typography.body)
-                                .keyboardType(.emailAddress)
-                                .autocapitalization(.none)
-                                .focused($focusedField)
-                        }
-                        .padding(Theme.Spacing.md)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                .fill(Theme.Colors.surfaceAlt)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                .stroke(
-                                    focusedField ? Theme.Colors.primary : Theme.Colors.border,
-                                    lineWidth: focusedField ? 2 : 1
-                                )
-                        )
+                        TextField("you@example.com", text: $viewModel.email)
+                            .font(Theme.Typography.body)
+                            .keyboardType(.emailAddress)
+                            .autocapitalization(.none)
+                            .focused($focusedField)
                     }
-                    .padding(.horizontal, Theme.Spacing.gutter)
-                } else {
-                    // Phone input
-                    VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                        Text("Phone Number")
-                            .font(Theme.Typography.caption)
-                            .foregroundColor(Theme.Colors.textSecondary)
-                        
-                        HStack(spacing: Theme.Spacing.sm) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "phone.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Theme.Colors.textSecondary)
-                                
-                                Text("+1")
-                                    .font(Theme.Typography.body)
-                                    .foregroundColor(Theme.Colors.textPrimary)
-                            }
-                            .padding(.leading, Theme.Spacing.sm)
-                            
-                            Divider()
-                                .frame(height: 24)
-                            
-                            TextField("(555) 123-4567", text: $viewModel.phoneNumber)
-                                .font(Theme.Typography.body)
-                                .keyboardType(.phonePad)
-                                .focused($focusedField)
-                                .onChange(of: viewModel.phoneNumber) { oldValue, newValue in
-                                    viewModel.phoneNumber = formatPhoneNumber(newValue)
-                                }
-                        }
-                        .padding(Theme.Spacing.md)
-                        .background(
-                            RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                .fill(Theme.Colors.surfaceAlt)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                .stroke(
-                                    focusedField ? Theme.Colors.primary : Theme.Colors.border,
-                                    lineWidth: focusedField ? 2 : 1
-                                )
-                        )
-                    }
-                    .padding(.horizontal, Theme.Spacing.gutter)
+                    .padding(Theme.Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Theme.Radii.md)
+                            .fill(Theme.Colors.surfaceAlt)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Theme.Radii.md)
+                            .stroke(
+                                focusedField ? Theme.Colors.primary : Theme.Colors.border,
+                                lineWidth: focusedField ? 2 : 1
+                            )
+                    )
                 }
+                .padding(.horizontal, Theme.Spacing.gutter)
                 
                 Spacer()
                 
@@ -196,25 +140,6 @@ struct ContactInputView: View {
             }
         }
     }
-    
-    private func formatPhoneNumber(_ value: String) -> String {
-        let digits = value.filter { $0.isNumber }
-        let limited = String(digits.prefix(10))
-        
-        var formatted = ""
-        for (index, character) in limited.enumerated() {
-            if index == 0 {
-                formatted += "("
-            } else if index == 3 {
-                formatted += ") "
-            } else if index == 6 {
-                formatted += "-"
-            }
-            formatted.append(character)
-        }
-        
-        return formatted
-    }
 }
 
 // MARK: - VerifyCodeView
@@ -238,7 +163,7 @@ struct VerifyCodeView: View {
                         .font(Theme.Typography.titleL)
                         .foregroundColor(Theme.Colors.textPrimary)
                     
-                    Text("We sent a verification code to \(viewModel.contactMethod == .email ? viewModel.email : viewModel.contactValue)")
+                    Text("We sent a verification code to \(viewModel.email)")
                         .font(Theme.Typography.body)
                         .foregroundColor(Theme.Colors.textSecondary)
                         .multilineTextAlignment(.center)
@@ -257,7 +182,7 @@ struct VerifyCodeView: View {
                         }
                     )
                     
-                    CountdownTimer {
+                    CountdownTimer(expirationTime: 60) {
                         Task {
                             await viewModel.resendCode()
                         }
@@ -564,4 +489,3 @@ struct LockIcon: View {
         }
     }
 }
-

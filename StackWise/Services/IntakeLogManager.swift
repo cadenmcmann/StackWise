@@ -31,9 +31,7 @@ public class IntakeLogManager: ObservableObject {
         date: Date,
         currentState: Bool
     ) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: date)
+        let dateString = date.apiDateString
         
         let key = "\(dateString)|\(supplementId)|\(time)"
         let newState = !currentState
@@ -65,9 +63,7 @@ public class IntakeLogManager: ObservableObject {
         date: Date,
         apiState: Bool
     ) -> Bool {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: date)
+        let dateString = date.apiDateString
         
         let key = "\(dateString)|\(supplementId)|\(time)"
         
@@ -123,19 +119,30 @@ public class IntakeLogManager: ObservableObject {
         isSending = true
         defer { isSending = false }
         
-        // Group changes by date
-        let changesByDate = Dictionary(grouping: pendingChanges.values) { $0.date }
+        // Snapshot pending changes so we only clear items we actually sent.
+        let pendingSnapshot = pendingChanges
+        let changesByDate = Dictionary(grouping: pendingSnapshot.values) { $0.date }
+        var successfulChanges: [IntakeChange] = []
         
         // Send batch requests for each date
         for (date, changes) in changesByDate {
-            await sendBatchForDate(date: date, changes: changes)
+            let wasSuccessful = await sendBatchForDate(date: date, changes: changes)
+            if wasSuccessful {
+                successfulChanges.append(contentsOf: changes)
+            }
         }
         
-        // Clear pending changes after sending
-        pendingChanges.removeAll()
+        // Remove only successfully sent changes that were not replaced by newer values.
+        for change in successfulChanges {
+            let key = "\(change.date)|\(change.supplementId)|\(change.time)"
+            if pendingChanges[key] == change {
+                pendingChanges.removeValue(forKey: key)
+            }
+        }
     }
     
-    private func sendBatchForDate(date: String, changes: [IntakeChange]) async {
+    @discardableResult
+    private func sendBatchForDate(date: String, changes: [IntakeChange]) async -> Bool {
         // Create the batch request
         let entries = changes.map { change in
             IntakeLogEntry(
@@ -157,23 +164,31 @@ public class IntakeLogManager: ObservableObject {
                 responseType: IntakeLogResponse.self
             )
             
+            #if DEBUG
             print("Successfully logged \(entries.count) entries for \(date)")
+            #endif
+            return true
         } catch {
+            #if DEBUG
             print("Failed to log intake: \(error)")
+            #endif
             
             // On failure, revert local state for these changes
             for change in changes {
                 let key = "\(date)|\(change.supplementId)|\(change.time)"
-                // Toggle back to opposite of what we tried to set
-                localIntakeState[key] = !change.taken
+                // Only revert if there isn't a newer pending update for this key.
+                if pendingChanges[key] == change {
+                    localIntakeState[key] = !change.taken
+                }
             }
+            return false
         }
     }
 }
 
 // MARK: - Supporting Types
 
-private struct IntakeChange {
+private struct IntakeChange: Equatable {
     let date: String
     let supplementId: String
     let time: String

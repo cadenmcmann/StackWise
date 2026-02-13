@@ -63,7 +63,21 @@ public struct ProfileView: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("Are you sure you want to delete your account? This action cannot be undone.")
+                Text("Your account will be deactivated immediately and permanently deleted after 7 days. This cannot be undone.")
+            }
+            .alert("Account Deactivated", isPresented: $viewModel.showDeleteAccountSuccessAlert) {
+                Button("OK") {
+                    Task {
+                        await viewModel.completeAccountDeletionSignOut()
+                    }
+                }
+            } message: {
+                Text(viewModel.deleteAccountSuccessMessage)
+            }
+            .alert("Unable to Delete Account", isPresented: $viewModel.showDeleteAccountErrorAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(viewModel.deleteAccountErrorMessage)
             }
             .alert("Sign Out", isPresented: $viewModel.showSignOutAlert) {
                 Button("Sign Out", role: .destructive) {
@@ -171,22 +185,6 @@ struct AccountInformationSection: View {
                         }
                     }
                     
-                    // Phone
-                    if let phone = viewModel.user?.phoneNumber, !phone.isEmpty {
-                        HStack(spacing: Theme.Spacing.md) {
-                            Image(systemName: "phone.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(Theme.Colors.primary.opacity(0.7))
-                                .frame(width: 20)
-                            
-                            Text(formatPhoneForDisplay(phone))
-                                .font(.system(size: 15))
-                                .foregroundColor(Theme.Colors.textSecondary)
-                            
-                            Spacer()
-                        }
-                    }
-                    
                     // Member since
                     if let createdAt = viewModel.user?.createdAt {
                         HStack(spacing: Theme.Spacing.md) {
@@ -195,7 +193,7 @@ struct AccountInformationSection: View {
                                 .foregroundColor(Theme.Colors.primary.opacity(0.7))
                                 .frame(width: 20)
                             
-                            Text("Member since \(formatDate(createdAt))")
+                            Text("Member since \(createdAt.monthYearString)")
                                 .font(.system(size: 15))
                                 .foregroundColor(Theme.Colors.textSecondary)
                             
@@ -215,24 +213,6 @@ struct AccountInformationSection: View {
         )
     }
     
-    private func formatPhoneForDisplay(_ phone: String) -> String {
-        // Remove country code if present and format
-        let digits = phone.replacingOccurrences(of: "+1", with: "").filter { $0.isNumber }
-        
-        guard digits.count >= 10 else { return phone }
-        
-        let areaCode = String(digits.prefix(3))
-        let middle = String(digits.dropFirst(3).prefix(3))
-        let last = String(digits.dropFirst(6).prefix(4))
-        
-        return "(\(areaCode)) \(middle)-\(last)"
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM yyyy"
-        return formatter.string(from: date)
-    }
 }
 
 // MARK: - SecuritySection
@@ -354,7 +334,7 @@ struct LegalSafetySection: View {
                     icon: "doc.text",
                     title: "Terms of Service",
                     action: {
-                        // Open terms
+                        openExternalURL(AppConfig.termsOfServiceURL)
                     }
                 )
                 
@@ -362,7 +342,7 @@ struct LegalSafetySection: View {
                     icon: "lock.shield",
                     title: "Privacy Policy",
                     action: {
-                        // Open privacy
+                        openExternalURL(AppConfig.privacyPolicyURL)
                     }
                 )
                 
@@ -370,12 +350,34 @@ struct LegalSafetySection: View {
                     icon: "exclamationmark.triangle",
                     title: "Safety Disclaimers",
                     action: {
-                        // Open disclaimers
+                        openExternalURL(AppConfig.safetyDisclaimersURL)
+                    }
+                )
+
+                LegalRow(
+                    icon: "envelope",
+                    title: "Contact Support",
+                    action: {
+                        openSupportEmail()
                     }
                 )
             }
             .padding(.horizontal, Theme.Spacing.gutter)
         }
+    }
+
+    private func openExternalURL(_ url: URL?) {
+        guard let url else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func openSupportEmail() {
+        let subject = "StackWise Support"
+        guard let encodedSubject = subject.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "mailto:\(AppConfig.supportEmailAddress)?subject=\(encodedSubject)") else {
+            return
+        }
+        UIApplication.shared.open(url)
     }
 }
 
@@ -435,15 +437,7 @@ struct PasswordResetFromProfile: View {
                     ContactInputView(viewModel: resetViewModel, dismiss: dismiss)
                         .onAppear {
                             if let email = user.email, !email.isEmpty {
-                                resetViewModel.contactMethod = .email
                                 resetViewModel.email = email
-                            } else if let phone = user.phoneNumber, !phone.isEmpty {
-                                resetViewModel.contactMethod = .phone
-                                // Remove country code for display
-                                resetViewModel.phoneNumber = phone.replacingOccurrences(of: "+1", with: "")
-                                    .filter { $0.isNumber }
-                                // Format it
-                                resetViewModel.phoneNumber = formatPhoneForPasswordReset(resetViewModel.phoneNumber)
                             }
                         }
                 case .verifyCode:
@@ -460,21 +454,5 @@ struct PasswordResetFromProfile: View {
                 Text(resetViewModel.errorMessage)
             }
         }
-    }
-    
-    private func formatPhoneForPasswordReset(_ digits: String) -> String {
-        let limited = String(digits.prefix(10))
-        var formatted = ""
-        for (index, character) in limited.enumerated() {
-            if index == 0 {
-                formatted += "("
-            } else if index == 3 {
-                formatted += ") "
-            } else if index == 6 {
-                formatted += "-"
-            }
-            formatted.append(character)
-        }
-        return formatted
     }
 }

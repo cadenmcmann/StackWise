@@ -103,14 +103,6 @@ struct BasicsScreen: View {
                             selection: $viewModel.intake.basics.stimulantTolerance,
                             options: User.StimulantTolerance.allCases.map { ($0, $0.rawValue) }
                         )
-                        
-                        CustomSlider(
-                            title: "Monthly Budget",
-                            value: $viewModel.intake.basics.budgetPerMonth,
-                            range: 25...500,
-                            step: 25,
-                            format: "$%.0f"
-                        )
                     }
                 }
                 .padding(Theme.Spacing.gutter)

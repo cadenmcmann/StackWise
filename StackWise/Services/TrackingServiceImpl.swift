@@ -1,7 +1,7 @@
 import Foundation
 
-// MARK: - RealTrackingService
-public class RealTrackingService: TrackingService {
+// MARK: - TrackingServiceImpl
+public class TrackingServiceImpl: TrackingService {
     private let networkManager = NetworkManager.shared
     
     public init() {}
@@ -26,9 +26,7 @@ public class RealTrackingService: TrackingService {
     }
     
     public func getWeeklyIntake(startDate: Date) async throws -> WeeklyIntakeResponse {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateString = formatter.string(from: startDate)
+        let dateString = startDate.apiDateString
         
         let response = try await networkManager.request(
             endpoint: "analytics/weekly-intake?start_date=\(dateString)",
@@ -40,3 +38,4 @@ public class RealTrackingService: TrackingService {
         return response
     }
 }
+

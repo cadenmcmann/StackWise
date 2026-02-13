@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import AuthenticationServices
 
 // MARK: - OnboardingViewModel
 @MainActor
@@ -10,7 +11,6 @@ public class OnboardingViewModel: ObservableObject {
     @Published var intake = Intake()
     @Published var isLoading = false
     @Published var error: String?
-    @Published var showHardStopAlert = false
     
     // Authentication
     @Published var isAuthenticated = false
@@ -19,6 +19,7 @@ public class OnboardingViewModel: ObservableObject {
     @Published var showAuthError = false
     @Published var authErrorMessage = ""
     @Published var showPasswordReset = false
+    @Published var isAppleSigningIn = false
     
     // Splash & Consent
     @Published var isOver18 = false
@@ -59,16 +60,22 @@ public class OnboardingViewModel: ObservableObject {
     public init(container: DIContainer) {
         self.container = container
         
+        #if DEBUG
         print("📱 OnboardingViewModel init - isRemixFlow: \(container.isRemixFlow), remixIntake: \(container.remixIntake != nil ? "set" : "nil")")
+        #endif
         
         // If this is a remix flow, pre-fill with existing preferences
         if container.isRemixFlow {
             // Pre-fill intake if available
             if let remixIntake = container.remixIntake {
                 self.intake = remixIntake
+                #if DEBUG
                 print("✅ Pre-filled intake from remix - goals: \(remixIntake.goals.count), age: \(remixIntake.basics.age), priority: '\(remixIntake.topPriorityText)'")
+                #endif
             } else {
+                #if DEBUG
                 print("⚠️ Remix flow but remixIntake is nil - forms will be empty")
+                #endif
             }
             // Skip welcome step since user is already authenticated
             self.currentStep = .splash
@@ -92,7 +99,7 @@ public class OnboardingViewModel: ObservableObject {
         case .basics:
             return intake.basics.age >= 18 && intake.basics.age <= 120
         case .risks:
-            return !hasHardStopRisk()
+            return true
         case .priority:
             return !intake.topPriorityText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case .review, .generating:
@@ -102,11 +109,6 @@ public class OnboardingViewModel: ObservableObject {
     
     public func nextStep() {
         guard canProceed() else { return }
-        
-        if currentStep == .risks && hasHardStopRisk() {
-            showHardStopAlert = true
-            return
-        }
         
         if currentStep == .review {
             Task {
@@ -142,10 +144,6 @@ public class OnboardingViewModel: ObservableObject {
     
     // MARK: - Business Logic
     
-    private func hasHardStopRisk() -> Bool {
-        return intake.risks.contains { $0.isHardStop }
-    }
-    
     private func generateStack() async {
         currentStep = .generating
         isLoading = true
@@ -160,12 +158,16 @@ public class OnboardingViewModel: ObservableObject {
                 user.weight = intake.basics.weight
                 user.bodyFat = intake.basics.bodyFat
                 user.stimulantTolerance = intake.basics.stimulantTolerance
-                user.budgetPerMonth = intake.basics.budgetPerMonth
                 
                 container.currentUser = user
             }
             
             // Generate stack (this will also save preferences to the API)
+            intake.isOver18Confirmed = isOver18
+            intake.acceptsDisclaimerConfirmed = acceptsDisclaimer
+            if isOver18 && acceptsDisclaimer {
+                intake.consentAcceptedAt = Date()
+            }
             try await container.generateStack(from: intake)
             
             // Mark onboarding as complete
@@ -178,7 +180,9 @@ public class OnboardingViewModel: ObservableObject {
             }
             
         } catch {
+            #if DEBUG
             print("❌ Failed to generate stack: \(error)")
+            #endif
             if let networkError = error as? NetworkError {
                 self.error = "Failed to generate your stack: \(networkError.localizedDescription)"
             } else {
@@ -190,12 +194,6 @@ public class OnboardingViewModel: ObservableObject {
         isLoading = false
     }
     
-    public func exportSummaryForClinician() async -> URL? {
-        // TODO: Implement PDF export for hard-stop cases
-        // For now, return nil
-        return nil
-    }
-    
     // MARK: - Authentication Methods
     
     public func login(email: String, password: String) async {
@@ -205,39 +203,6 @@ public class OnboardingViewModel: ObservableObject {
         
         do {
             let user = try await container.authService.signInEmail(email: email, password: password)
-            container.currentUser = user
-            isAuthenticated = true
-            
-            // Check if user has completed onboarding by trying to fetch their stack
-            await container.loadCurrentStack()
-            if container.currentStack != nil {
-                // User has a stack, they've completed onboarding
-                container.onboardingCompleted = true
-            } else {
-                // Move to next step in onboarding
-                withAnimation(Theme.Animation.standard) {
-                    currentStep = .splash
-                }
-            }
-        } catch {
-            if let networkError = error as? NetworkError {
-                authErrorMessage = networkError.localizedDescription
-            } else {
-                authErrorMessage = "Failed to log in. Please check your credentials and try again."
-            }
-            showAuthError = true
-        }
-        
-        isLoading = false
-    }
-    
-    public func loginPhone(phoneNumber: String, password: String) async {
-        isLoading = true
-        authErrorMessage = ""
-        showAuthError = false
-        
-        do {
-            let user = try await container.authService.signInPhone(phoneNumber: phoneNumber, password: password)
             container.currentUser = user
             isAuthenticated = true
             
@@ -302,7 +267,7 @@ public class OnboardingViewModel: ObservableObject {
     }
     
     public func signInWithApple() async {
-        isLoading = true
+        isAppleSigningIn = true
         authErrorMessage = ""
         showAuthError = false
         
@@ -341,6 +306,69 @@ public class OnboardingViewModel: ObservableObject {
             showAuthError = true
         }
         
-        isLoading = false
+        isAppleSigningIn = false
+    }
+
+    public func signInWithApple(result: Result<ASAuthorization, Error>) async {
+        isAppleSigningIn = true
+        authErrorMessage = ""
+        showAuthError = false
+
+        do {
+            let authorization = try result.get()
+            guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+                throw AppleSignInError.invalidCredential
+            }
+            guard let tokenData = appleCredential.identityToken else {
+                throw AppleSignInError.missingIdentityToken
+            }
+            guard let identityToken = String(data: tokenData, encoding: .utf8) else {
+                throw AppleSignInError.tokenEncodingFailed
+            }
+
+            let authorizationCode = appleCredential.authorizationCode.flatMap {
+                String(data: $0, encoding: .utf8)
+            }
+
+            let user = try await container.authService.signInApple(
+                identityToken: identityToken,
+                authorizationCode: authorizationCode,
+                email: appleCredential.email
+            )
+
+            container.currentUser = user
+            isAuthenticated = true
+
+            await container.loadCurrentStack()
+            if container.currentStack != nil {
+                container.onboardingCompleted = true
+            } else {
+                withAnimation(Theme.Animation.standard) {
+                    currentStep = .splash
+                }
+            }
+        } catch let error as ASAuthorizationError {
+            if error.code != .canceled {
+                authErrorMessage = error.localizedDescription
+                showAuthError = true
+            }
+        } catch let error as AppleSignInError {
+            switch error {
+            case .cancelled:
+                break
+            default:
+                authErrorMessage = error.localizedDescription
+                showAuthError = true
+            }
+        } catch {
+            if let networkError = error as? NetworkError {
+                authErrorMessage = networkError.localizedDescription
+            } else {
+                authErrorMessage = "Failed to sign in with Apple. Please try again."
+            }
+            showAuthError = true
+        }
+
+        isAppleSigningIn = false
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 // MARK: - WelcomeScreen
 struct WelcomeScreen: View {
@@ -31,25 +32,23 @@ struct WelcomeScreen: View {
             // Auth buttons
             VStack(spacing: Theme.Spacing.md) {
                 // Sign in with Apple
-                Button {
+                SignInWithAppleButton(.continue) { request in
+                    request.requestedScopes = [.fullName, .email]
+                } onCompletion: { result in
                     Task {
-                        await viewModel.signInWithApple()
+                        await viewModel.signInWithApple(result: result)
                     }
-                } label: {
-                    HStack(spacing: Theme.Spacing.sm) {
-                        Image(systemName: "apple.logo")
-                            .font(.system(size: 20))
-                        Text("Continue with Apple")
-                            .font(Theme.Typography.body)
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    .background(Theme.Colors.appleButtonBackground)
-                    .foregroundColor(Theme.Colors.appleButtonForeground)
-                    .cornerRadius(Theme.Radii.md)
                 }
-                .buttonStyle(PlainButtonStyle())
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.md))
+                .disabled(viewModel.isAppleSigningIn)
+                .overlay {
+                    if viewModel.isAppleSigningIn {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    }
+                }
                 
                 // Divider
                 HStack(spacing: Theme.Spacing.md) {
@@ -96,9 +95,10 @@ struct WelcomeScreen: View {
             .padding(.horizontal, Theme.Spacing.gutter)
             
             // Legal text
-            Text("By continuing, you agree to our Terms of Service and Privacy Policy")
+            Text(.init("By continuing, you agree to our [Terms of Service](\(AppConfig.termsOfServiceURLString)) and [Privacy Policy](\(AppConfig.privacyPolicyURLString))."))
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Colors.textSecondary)
+                .tint(Theme.Colors.primary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, Theme.Spacing.xxl)
                 .padding(.top, Theme.Spacing.xl)

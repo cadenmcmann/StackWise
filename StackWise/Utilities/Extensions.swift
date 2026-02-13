@@ -65,6 +65,106 @@ public extension Date {
     }
 }
 
+// MARK: - Date Formatting
+public enum DateFormatting {
+    // Cached formatters (expensive to create, safe to reuse)
+    
+    /// API date format: "2025-01-15"
+    public static let apiDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        return formatter
+    }()
+    
+    /// ISO8601 with fractional seconds for API timestamps
+    public static let iso8601Formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    
+    /// Short time: "8:00 AM"
+    public static let shortTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter
+    }()
+    
+    /// Short weekday: "Mon"
+    public static let shortWeekdayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "E"
+        return formatter
+    }()
+    
+    /// Day number: "15"
+    public static let dayNumberFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d"
+        return formatter
+    }()
+    
+    /// Full date: "Monday, Jan 15"
+    public static let fullDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter
+    }()
+    
+    /// Month day: "Jan 15"
+    public static let monthDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM d"
+        return formatter
+    }()
+    
+    /// Month year: "Jan 2025"
+    public static let monthYearFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM yyyy"
+        return formatter
+    }()
+}
+
+// MARK: - Date Formatting Extensions
+public extension Date {
+    /// Format for API: "2025-01-15"
+    var apiDateString: String {
+        DateFormatting.apiDateFormatter.string(from: self)
+    }
+    
+    /// Format as short time: "8:00 AM"
+    var shortTimeString: String {
+        DateFormatting.shortTimeFormatter.string(from: self)
+    }
+    
+    /// Format as short weekday: "Mon"
+    var shortWeekday: String {
+        DateFormatting.shortWeekdayFormatter.string(from: self)
+    }
+    
+    /// Format as day number: "15"
+    var dayNumber: String {
+        DateFormatting.dayNumberFormatter.string(from: self)
+    }
+    
+    /// Format as full date: "Monday, Jan 15"
+    var fullDateString: String {
+        DateFormatting.fullDateFormatter.string(from: self)
+    }
+    
+    /// Format as month day: "Jan 15"
+    var monthDayString: String {
+        DateFormatting.monthDayFormatter.string(from: self)
+    }
+    
+    /// Format as month year: "Jan 2025"
+    var monthYearString: String {
+        DateFormatting.monthYearFormatter.string(from: self)
+    }
+}
+
 // MARK: - String Extensions
 public extension String {
     /// Returns trimmed string
@@ -77,6 +177,16 @@ public extension String {
         let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
         let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
         return emailPred.evaluate(with: self)
+    }
+    
+    /// Parse API date string to Date
+    var apiDate: Date? {
+        DateFormatting.apiDateFormatter.date(from: self)
+    }
+    
+    /// Parse ISO8601 string to Date
+    var iso8601Date: Date? {
+        DateFormatting.iso8601Formatter.date(from: self)
     }
 }
 

@@ -1,8 +1,8 @@
 import Foundation
 import AuthenticationServices
 
-// MARK: - RealAuthService
-public class RealAuthService: AuthService {
+// MARK: - AuthServiceImpl
+public class AuthServiceImpl: AuthService {
     private let networkManager = NetworkManager.shared
     private var _currentUser: User?
     private let appleSignInManager = AppleSignInManager()
@@ -17,19 +17,23 @@ public class RealAuthService: AuthService {
     public func signInApple() async throws -> User {
         // Get Apple credentials using AppleSignInManager
         let credentials = try await appleSignInManager.startSignIn()
-        
-        // Create request for backend API
-        let request = AppleSignInRequest(
+        return try await signInApple(
             identityToken: credentials.identityToken,
             authorizationCode: credentials.authorizationCode,
             email: credentials.email
         )
-        
-        // Encode with plain JSONEncoder (no snake_case conversion)
-        // The Apple auth endpoint expects camelCase keys
+    }
+
+    public func signInApple(identityToken: String, authorizationCode: String?, email: String?) async throws -> User {
+        let request = AppleSignInRequest(
+            identityToken: identityToken,
+            authorizationCode: authorizationCode,
+            email: email
+        )
+
         let encoder = JSONEncoder()
         let rawBodyData = try encoder.encode(request)
-        
+
         do {
             let response = try await networkManager.request(
                 endpoint: "auth/apple",
@@ -42,25 +46,17 @@ public class RealAuthService: AuthService {
             // Store the token
             networkManager.setAuthToken(response.token)
             
-            // Create user from API response and fetch preferences if available
-            var user = response.user.toUser()
-            
-            // Try to fetch preferences
-            if let preferencesResponse = try? await networkManager.request(
-                endpoint: "preferences",
-                method: "GET",
-                requiresAuth: true,
-                responseType: PreferencesResponse.self
-            ) {
-                user = response.user.toUser(withPreferences: preferencesResponse.preferences)
-            }
+            // Create user from API response and load preferences with retry
+            let user = try await hydrateUserWithPreferences(from: response.user)
             
             _currentUser = user
             storeUser(user)
             
             return user
         } catch {
+            #if DEBUG
             print("Apple Sign In error: \(error)")
+            #endif
             throw error
         }
     }
@@ -82,25 +78,17 @@ public class RealAuthService: AuthService {
             // Store the token
             networkManager.setAuthToken(response.token)
             
-            // Create user from API response and fetch preferences if available
-            var user = response.user.toUser()
-            
-            // Try to fetch preferences
-            if let preferencesResponse = try? await networkManager.request(
-                endpoint: "preferences",
-                method: "GET",
-                requiresAuth: true,
-                responseType: PreferencesResponse.self
-            ) {
-                user = response.user.toUser(withPreferences: preferencesResponse.preferences)
-            }
+            // Create user from API response and load preferences with retry
+            let user = try await hydrateUserWithPreferences(from: response.user)
             
             _currentUser = user
             storeUser(user)
             
             return user
         } catch {
+            #if DEBUG
             print("Login error: \(error)")
+            #endif
             throw error
         }
     }
@@ -120,25 +108,17 @@ public class RealAuthService: AuthService {
             // Store the token
             networkManager.setAuthToken(response.token)
             
-            // Create user from API response and fetch preferences if available
-            var user = response.user.toUser()
-            
-            // Try to fetch preferences
-            if let preferencesResponse = try? await networkManager.request(
-                endpoint: "preferences",
-                method: "GET",
-                requiresAuth: true,
-                responseType: PreferencesResponse.self
-            ) {
-                user = response.user.toUser(withPreferences: preferencesResponse.preferences)
-            }
+            // Create user from API response and load preferences with retry
+            let user = try await hydrateUserWithPreferences(from: response.user)
             
             _currentUser = user
             storeUser(user)
             
             return user
         } catch {
+            #if DEBUG
             print("Phone login error: \(error)")
+            #endif
             throw error
         }
     }
@@ -172,7 +152,9 @@ public class RealAuthService: AuthService {
             
             return user
         } catch {
+            #if DEBUG
             print("Signup error: \(error)")
+            #endif
             throw error
         }
     }
@@ -193,7 +175,9 @@ public class RealAuthService: AuthService {
             
             return response
         } catch {
+            #if DEBUG
             print("Send verification code error: \(error)")
+            #endif
             throw error
         }
     }
@@ -215,18 +199,8 @@ public class RealAuthService: AuthService {
                 // Store the token
                 networkManager.setAuthToken(response.token)
                 
-                // Create user from API response and fetch preferences if available
-                var user = response.user.toUser()
-                
-                // Try to fetch preferences
-                if let preferencesResponse = try? await networkManager.request(
-                    endpoint: "preferences",
-                    method: "GET",
-                    requiresAuth: true,
-                    responseType: PreferencesResponse.self
-                ) {
-                    user = response.user.toUser(withPreferences: preferencesResponse.preferences)
-                }
+                // Create user from API response and load preferences with retry
+                let user = try await hydrateUserWithPreferences(from: response.user)
                 
                 _currentUser = user
                 storeUser(user)
@@ -246,7 +220,9 @@ public class RealAuthService: AuthService {
                 return nil
             }
         } catch {
+            #if DEBUG
             print("Verify code error: \(error)")
+            #endif
             throw error
         }
     }
@@ -270,7 +246,9 @@ public class RealAuthService: AuthService {
                 responseType: ResetPasswordResponse.self
             )
         } catch {
+            #if DEBUG
             print("Reset password error: \(error)")
+            #endif
             throw error
         }
     }
@@ -312,9 +290,20 @@ public class RealAuthService: AuthService {
                 return user
             }
         } catch {
+            #if DEBUG
             print("Update profile error: \(error)")
+            #endif
             throw error
         }
+    }
+
+    public func deleteAccount() async throws {
+        _ = try await networkManager.request(
+            endpoint: "users/deactivate",
+            method: "POST",
+            requiresAuth: true,
+            responseType: DeactivateAccountResponse.self
+        )
     }
     
     // MARK: - Session Management
@@ -332,19 +321,52 @@ public class RealAuthService: AuthService {
     // MARK: - Persistence Helpers
     
     private func storeUser(_ user: User) {
-        if let encoded = try? JSONEncoder().encode(user) {
-            UserDefaults.standard.set(encoded, forKey: "current_user")
-        }
+        SecureStorage.shared.setCodable(user, for: SecureStorageKeys.currentUser)
     }
     
     private func loadStoredUser() {
-        if let data = UserDefaults.standard.data(forKey: "current_user"),
-           let user = try? JSONDecoder().decode(User.self, from: data) {
+        if let user = SecureStorage.shared.getCodable(User.self, for: SecureStorageKeys.currentUser) {
             _currentUser = user
         }
     }
     
     private func clearStoredUser() {
-        UserDefaults.standard.removeObject(forKey: "current_user")
+        SecureStorage.shared.deleteValue(for: SecureStorageKeys.currentUser)
+    }
+
+    private func hydrateUserWithPreferences(from apiUser: APIUser) async throws -> User {
+        var user = apiUser.toUser()
+        var lastError: Error?
+
+        for attempt in 1...2 {
+            do {
+                let preferencesResponse = try await networkManager.request(
+                    endpoint: "preferences",
+                    method: "GET",
+                    requiresAuth: true,
+                    responseType: PreferencesResponse.self
+                )
+                user = apiUser.toUser(withPreferences: preferencesResponse.preferences)
+                return user
+            } catch {
+                if case NetworkError.apiError(_, let statusCode) = error, statusCode == 404 {
+                    return user
+                }
+                if case NetworkError.httpError(let statusCode) = error, statusCode == 404 {
+                    return user
+                }
+
+                lastError = error
+                if attempt == 1 {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                }
+            }
+        }
+
+        if let lastError {
+            throw lastError
+        }
+        return user
     }
 }
+

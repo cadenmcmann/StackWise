@@ -15,7 +15,19 @@ public struct TodayView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                if !viewModel.reminders.isEmpty {
+                if viewModel.showError {
+                    EmptyState(
+                        icon: "exclamationmark.triangle",
+                        title: "Unable to Load",
+                        subtitle: viewModel.errorMessage,
+                        primaryAction: {
+                            Task {
+                                await viewModel.retry()
+                            }
+                        },
+                        primaryActionTitle: "Try Again"
+                    )
+                } else if !viewModel.reminders.isEmpty {
                     ScrollView {
                         VStack(spacing: Theme.Spacing.xl) {
                             // Today's progress
@@ -235,16 +247,10 @@ struct TimelineRow: View {
     let isTaken: Bool
     let onToggle: () -> Void
     
-    private var timeString: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: reminder.timeOfDay)
-    }
-    
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
             // Time
-            Text(timeString)
+            Text(reminder.timeOfDay.shortTimeString)
                 .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Colors.textSecondary)
                 .frame(width: 60, alignment: .leading)

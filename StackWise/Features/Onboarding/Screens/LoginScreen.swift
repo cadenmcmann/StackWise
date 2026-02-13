@@ -1,14 +1,13 @@
 import SwiftUI
+import AuthenticationServices
 
 // MARK: - LoginScreen
 struct LoginScreen: View {
     @ObservedObject var viewModel: OnboardingViewModel
     @State private var email = ""
-    @State private var phoneNumber = ""
     @State private var password = ""
     @State private var verificationCode = ""
     @State private var showPassword = false
-    @State private var contactMethod = ContactMethod.email
     @State private var useVerificationCode = false
     @State private var isWaitingForCode = false
     @State private var isSendingCode = false
@@ -19,7 +18,6 @@ struct LoginScreen: View {
     
     enum Field: Hashable {
         case email
-        case phone
         case password
         case code
     }
@@ -40,88 +38,37 @@ struct LoginScreen: View {
                     }
                     .padding(.top, Theme.Spacing.xxl)
                     
-                    // Contact method toggle
-                    ContactMethodToggle(selectedMethod: $contactMethod)
-                        .padding(.horizontal, Theme.Spacing.xl)
-                    
                     // Form fields
                     VStack(spacing: Theme.Spacing.lg) {
-                        // Contact input (Email or Phone)
-                        if contactMethod == .email {
-                            // Email field
-                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                                Text("Email")
-                                    .font(Theme.Typography.caption)
+                        // Email field
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                            Text("Email")
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Colors.textSecondary)
+                            
+                            HStack(spacing: Theme.Spacing.sm) {
+                                Image(systemName: "envelope")
+                                    .font(.system(size: 16))
                                     .foregroundColor(Theme.Colors.textSecondary)
                                 
-                                HStack(spacing: Theme.Spacing.sm) {
-                                    Image(systemName: "envelope")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(Theme.Colors.textSecondary)
-                                    
-                                    TextField("you@example.com", text: $email)
-                                        .font(Theme.Typography.body)
-                                        .keyboardType(.emailAddress)
-                                        .autocapitalization(.none)
-                                        .focused($focusedField, equals: .email)
-                                }
-                                .padding(Theme.Spacing.md)
-                                .background(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .fill(Theme.Colors.surfaceAlt)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .stroke(
-                                            focusedField == .email ? Theme.Colors.primary : Theme.Colors.border,
-                                            lineWidth: focusedField == .email ? 2 : 1
-                                        )
-                                )
+                                TextField("you@example.com", text: $email)
+                                    .font(Theme.Typography.body)
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .focused($focusedField, equals: .email)
                             }
-                        } else {
-                            // Phone field
-                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                                Text("Phone Number")
-                                    .font(Theme.Typography.caption)
-                                    .foregroundColor(Theme.Colors.textSecondary)
-                                
-                                HStack(spacing: Theme.Spacing.sm) {
-                                    // Country code
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "phone.fill")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(Theme.Colors.textSecondary)
-                                        
-                                        Text("+1")
-                                            .font(Theme.Typography.body)
-                                            .foregroundColor(Theme.Colors.textPrimary)
-                                    }
-                                    .padding(.leading, Theme.Spacing.xs)
-                                    
-                                    Divider()
-                                        .frame(height: 24)
-                                    
-                                    TextField("(555) 123-4567", text: $phoneNumber)
-                                        .font(Theme.Typography.body)
-                                        .keyboardType(.phonePad)
-                                        .focused($focusedField, equals: .phone)
-                                        .onChange(of: phoneNumber) { oldValue, newValue in
-                                            phoneNumber = formatPhoneNumber(newValue)
-                                        }
-                                }
-                                .padding(Theme.Spacing.md)
-                                .background(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .fill(Theme.Colors.surfaceAlt)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .stroke(
-                                            focusedField == .phone ? Theme.Colors.primary : Theme.Colors.border,
-                                            lineWidth: focusedField == .phone ? 2 : 1
-                                        )
-                                )
-                            }
+                            .padding(Theme.Spacing.md)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radii.md)
+                                    .fill(Theme.Colors.surfaceAlt)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radii.md)
+                                    .stroke(
+                                        focusedField == .email ? Theme.Colors.primary : Theme.Colors.border,
+                                        lineWidth: focusedField == .email ? 2 : 1
+                                    )
+                            )
                         }
                         
                         // Auth method toggle
@@ -206,7 +153,7 @@ struct LoginScreen: View {
                                         }
                                     },
                                     isLoading: isSendingCode,
-                                    isDisabled: (contactMethod == .email && email.isEmpty) || (contactMethod == .phone && phoneNumber.count < 10)
+                                    isDisabled: email.isEmpty
                                 )
                             } else {
                                 // Verification code input
@@ -271,26 +218,26 @@ struct LoginScreen: View {
                     .padding(.vertical, Theme.Spacing.sm)
                     
                     // Sign in with Apple
-                    Button {
+                    SignInWithAppleButton(.signIn) { request in
+                        request.requestedScopes = [.fullName, .email]
+                    } onCompletion: { result in
                         Task {
-                            await viewModel.signInWithApple()
-                            dismiss()
+                            await viewModel.signInWithApple(result: result)
+                            if viewModel.isAuthenticated {
+                                dismiss()
+                            }
                         }
-                    } label: {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "apple.logo")
-                                .font(.system(size: 20))
-                            Text("Continue with Apple")
-                                .font(Theme.Typography.body)
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Theme.Colors.appleButtonBackground)
-                        .foregroundColor(Theme.Colors.appleButtonForeground)
-                        .cornerRadius(Theme.Radii.md)
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.md))
+                    .disabled(viewModel.isAppleSigningIn)
+                    .overlay {
+                        if viewModel.isAppleSigningIn {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        }
+                    }
                     
                     // Login button
                     if !useVerificationCode {
@@ -302,7 +249,7 @@ struct LoginScreen: View {
                                 }
                             },
                             isLoading: viewModel.isLoading,
-                            isDisabled: isLoginDisabled()
+                            isDisabled: email.isEmpty || password.isEmpty
                         )
                     } else if isWaitingForCode {
                         PrimaryButton(
@@ -396,92 +343,35 @@ struct LoginScreen: View {
     
     // MARK: - Helper Methods
     
-    private func isLoginDisabled() -> Bool {
-        if contactMethod == .email {
-            return email.isEmpty || (!useVerificationCode && password.isEmpty)
-        } else {
-            return phoneNumber.count < 10 || (!useVerificationCode && password.isEmpty)
-        }
-    }
-    
-    private func formatPhoneNumber(_ value: String) -> String {
-        // Remove all non-digit characters
-        let digits = value.filter { $0.isNumber }
-        
-        // Limit to 10 digits
-        let limited = String(digits.prefix(10))
-        
-        // Format as (XXX) XXX-XXXX
-        var formatted = ""
-        for (index, character) in limited.enumerated() {
-            if index == 0 {
-                formatted += "("
-            } else if index == 3 {
-                formatted += ") "
-            } else if index == 6 {
-                formatted += "-"
-            }
-            formatted.append(character)
-        }
-        
-        return formatted
-    }
-    
     private func handleOnSubmit() {
-        if contactMethod == .email {
-            if focusedField == .email && !useVerificationCode {
-                focusedField = .password
-            } else if !useVerificationCode {
-                Task {
-                    await performPasswordLogin()
-                }
-            }
-        } else {
-            if focusedField == .phone && !useVerificationCode {
-                focusedField = .password
-            } else if !useVerificationCode {
-                Task {
-                    await performPasswordLogin()
-                }
+        if focusedField == .email && !useVerificationCode {
+            focusedField = .password
+        } else if !useVerificationCode {
+            Task {
+                await performPasswordLogin()
             }
         }
     }
     
     private func performPasswordLogin() async {
-        do {
-            if contactMethod == .email {
-                await viewModel.login(email: email, password: password)
-            } else {
-                let formattedPhone = "+1" + phoneNumber.filter { $0.isNumber }
-                await viewModel.loginPhone(phoneNumber: formattedPhone, password: password)
-            }
-            
-            if viewModel.isAuthenticated {
-                dismiss()
-            } else if viewModel.error != nil {
-                // Show alert suggesting verification code
-                showPasswordFailedAlert = true
-            }
+        await viewModel.login(email: email, password: password)
+        
+        if viewModel.isAuthenticated {
+            dismiss()
+        } else if viewModel.error != nil {
+            // Show alert suggesting verification code
+            showPasswordFailedAlert = true
         }
     }
     
     private func sendVerificationCode() async {
         isSendingCode = true
         do {
-            if contactMethod == .email {
-                _ = try await viewModel.container.services.authService.sendVerificationCode(
-                    email: email,
-                    phoneNumber: nil,
-                    purpose: "login"
-                )
-            } else {
-                let formattedPhone = "+1" + phoneNumber.filter { $0.isNumber }
-                _ = try await viewModel.container.services.authService.sendVerificationCode(
-                    email: nil,
-                    phoneNumber: formattedPhone,
-                    purpose: "login"
-                )
-            }
+            _ = try await viewModel.container.services.authService.sendVerificationCode(
+                email: email,
+                phoneNumber: nil,
+                purpose: "login"
+            )
             
             isSendingCode = false
             withAnimation(Theme.Animation.quick) {
@@ -500,26 +390,14 @@ struct LoginScreen: View {
     
     private func verifyAndLogin() async {
         do {
-            let authResponse: AuthResponse?
+            let authResponse = try await viewModel.container.services.authService.verifyCode(
+                email: email,
+                phoneNumber: nil,
+                code: verificationCode,
+                purpose: "login"
+            )
             
-            if contactMethod == .email {
-                authResponse = try await viewModel.container.services.authService.verifyCode(
-                    email: email,
-                    phoneNumber: nil,
-                    code: verificationCode,
-                    purpose: "login"
-                )
-            } else {
-                let formattedPhone = "+1" + phoneNumber.filter { $0.isNumber }
-                authResponse = try await viewModel.container.services.authService.verifyCode(
-                    email: nil,
-                    phoneNumber: formattedPhone,
-                    code: verificationCode,
-                    purpose: "login"
-                )
-            }
-            
-            if let response = authResponse {
+            if let _ = authResponse {
                 // Get the current user from the auth service (already stored there)
                 if let user = viewModel.container.services.authService.currentUser() {
                     // Update the container's current user
@@ -546,4 +424,3 @@ struct LoginScreen: View {
         }
     }
 }
-

@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 
 // MARK: - SignupScreen
 struct SignupScreen: View {
@@ -6,13 +7,11 @@ struct SignupScreen: View {
     @State private var firstName = ""
     @State private var lastName = ""
     @State private var email = ""
-    @State private var phoneNumber = ""
     @State private var password = ""
     @State private var confirmPassword = ""
     @State private var showPassword = false
     @State private var showConfirmPassword = false
     @State private var acceptTerms = false
-    @State private var contactMethod = ContactMethod.email
     @FocusState private var focusedField: Field?
     @Environment(\.dismiss) private var dismiss
     
@@ -20,7 +19,6 @@ struct SignupScreen: View {
         case firstName
         case lastName
         case email
-        case phone
         case password
         case confirmPassword
     }
@@ -36,9 +34,7 @@ struct SignupScreen: View {
     }
     
     private var canSignUp: Bool {
-        let hasContactMethod = (contactMethod == .email && isValidEmail) || 
-                             (contactMethod == .phone && phoneNumber.count >= 10)
-        return hasContactMethod && password.count >= 8 && passwordsMatch && acceptTerms
+        return isValidEmail && password.count >= 8 && passwordsMatch && acceptTerms
     }
     
     private var passwordStrength: PasswordStrength {
@@ -160,90 +156,40 @@ struct SignupScreen: View {
                             }
                         }
                         
-                        // Contact method toggle
-                        ContactMethodToggle(selectedMethod: $contactMethod)
-                        
-                        // Contact field (Email or Phone)
-                        if contactMethod == .email {
-                            // Email field
-                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                                Text("Email")
-                                    .font(Theme.Typography.caption)
+                        // Email field
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                            Text("Email")
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Colors.textSecondary)
+                            
+                            HStack(spacing: Theme.Spacing.sm) {
+                                Image(systemName: "envelope")
+                                    .font(.system(size: 16))
                                     .foregroundColor(Theme.Colors.textSecondary)
                                 
-                                HStack(spacing: Theme.Spacing.sm) {
-                                    Image(systemName: "envelope")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(Theme.Colors.textSecondary)
-                                    
-                                    TextField("you@example.com", text: $email)
-                                        .font(Theme.Typography.body)
-                                        .keyboardType(.emailAddress)
-                                        .autocapitalization(.none)
-                                        .focused($focusedField, equals: .email)
-                                }
-                                .padding(Theme.Spacing.md)
-                                .background(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .fill(Theme.Colors.surfaceAlt)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .stroke(
-                                            focusedField == .email ? Theme.Colors.primary : Theme.Colors.border,
-                                            lineWidth: focusedField == .email ? 2 : 1
-                                        )
-                                )
-                                
-                                if !email.isEmpty && !isValidEmail {
-                                    Text("Please enter a valid email address")
-                                        .font(Theme.Typography.caption)
-                                        .foregroundColor(Theme.Colors.danger)
-                                }
+                                TextField("you@example.com", text: $email)
+                                    .font(Theme.Typography.body)
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .focused($focusedField, equals: .email)
                             }
-                        } else {
-                            // Phone field
-                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-                                Text("Phone Number")
+                            .padding(Theme.Spacing.md)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radii.md)
+                                    .fill(Theme.Colors.surfaceAlt)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radii.md)
+                                    .stroke(
+                                        focusedField == .email ? Theme.Colors.primary : Theme.Colors.border,
+                                        lineWidth: focusedField == .email ? 2 : 1
+                                    )
+                            )
+                            
+                            if !email.isEmpty && !isValidEmail {
+                                Text("Please enter a valid email address")
                                     .font(Theme.Typography.caption)
-                                    .foregroundColor(Theme.Colors.textSecondary)
-                                
-                                HStack(spacing: Theme.Spacing.sm) {
-                                    // Country code
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "phone.fill")
-                                            .font(.system(size: 16))
-                                            .foregroundColor(Theme.Colors.textSecondary)
-                                        
-                                        Text("+1")
-                                            .font(Theme.Typography.body)
-                                            .foregroundColor(Theme.Colors.textPrimary)
-                                    }
-                                    .padding(.leading, Theme.Spacing.xs)
-                                    
-                                    Divider()
-                                        .frame(height: 24)
-                                    
-                                    TextField("(555) 123-4567", text: $phoneNumber)
-                                        .font(Theme.Typography.body)
-                                        .keyboardType(.phonePad)
-                                        .focused($focusedField, equals: .phone)
-                                        .onChange(of: phoneNumber) { oldValue, newValue in
-                                            phoneNumber = formatPhoneNumber(newValue)
-                                        }
-                                }
-                                .padding(Theme.Spacing.md)
-                                .background(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .fill(Theme.Colors.surfaceAlt)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: Theme.Radii.md)
-                                        .stroke(
-                                            focusedField == .phone ? Theme.Colors.primary : Theme.Colors.border,
-                                            lineWidth: focusedField == .phone ? 2 : 1
-                                        )
-                                )
+                                    .foregroundColor(Theme.Colors.danger)
                             }
                         }
                         
@@ -372,16 +318,15 @@ struct SignupScreen: View {
                                     .foregroundColor(acceptTerms ? Theme.Colors.primary : Theme.Colors.border)
                             }
                             
-                            Text("I agree to the Terms of Service and Privacy Policy")
+                            Text(.init("I agree to the [Terms of Service](\(AppConfig.termsOfServiceURLString)) and [Privacy Policy](\(AppConfig.privacyPolicyURLString))."))
                                 .font(Theme.Typography.caption)
                                 .foregroundColor(Theme.Colors.textSecondary)
+                                .tint(Theme.Colors.primary)
                                 .multilineTextAlignment(.leading)
-                                .onTapGesture {
-                                    acceptTerms.toggle()
-                                }
                             
                             Spacer()
                         }
+                        .sensoryFeedback(.selection, trigger: acceptTerms)
                     }
                     
                     // Divider
@@ -401,26 +346,26 @@ struct SignupScreen: View {
                     .padding(.vertical, Theme.Spacing.sm)
                     
                     // Sign in with Apple
-                    Button {
+                    SignInWithAppleButton(.signUp) { request in
+                        request.requestedScopes = [.fullName, .email]
+                    } onCompletion: { result in
                         Task {
-                            await viewModel.signInWithApple()
-                            dismiss()
+                            await viewModel.signInWithApple(result: result)
+                            if viewModel.isAuthenticated {
+                                dismiss()
+                            }
                         }
-                    } label: {
-                        HStack(spacing: Theme.Spacing.sm) {
-                            Image(systemName: "apple.logo")
-                                .font(.system(size: 20))
-                            Text("Continue with Apple")
-                                .font(Theme.Typography.body)
-                                .fontWeight(.semibold)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Theme.Colors.appleButtonBackground)
-                        .foregroundColor(Theme.Colors.appleButtonForeground)
-                        .cornerRadius(Theme.Radii.md)
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 50)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radii.md))
+                    .disabled(viewModel.isAppleSigningIn)
+                    .overlay {
+                        if viewModel.isAppleSigningIn {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        }
+                    }
                     
                     // Sign up button
                     PrimaryButton(
@@ -484,36 +429,13 @@ struct SignupScreen: View {
         }
     }
     
-    private func formatPhoneNumber(_ value: String) -> String {
-        // Remove all non-digit characters
-        let digits = value.filter { $0.isNumber }
-        
-        // Limit to 10 digits
-        let limited = String(digits.prefix(10))
-        
-        // Format as (XXX) XXX-XXXX
-        var formatted = ""
-        for (index, character) in limited.enumerated() {
-            if index == 0 {
-                formatted += "("
-            } else if index == 3 {
-                formatted += ") "
-            } else if index == 6 {
-                formatted += "-"
-            }
-            formatted.append(character)
-        }
-        
-        return formatted
-    }
-    
     private func handleOnSubmit() {
         switch focusedField {
         case .firstName:
             focusedField = .lastName
         case .lastName:
-            focusedField = contactMethod == .email ? .email : .phone
-        case .email, .phone:
+            focusedField = .email
+        case .email:
             focusedField = .password
         case .password:
             focusedField = .confirmPassword
@@ -534,26 +456,17 @@ struct SignupScreen: View {
             .joined(separator: " ")
             .trimmingCharacters(in: .whitespaces)
         
-        if contactMethod == .email {
-            await viewModel.signup(
-                name: displayName.isEmpty ? email : displayName,
-                email: email,
-                password: password,
-                firstName: firstName.isEmpty ? nil : firstName,
-                lastName: lastName.isEmpty ? nil : lastName,
-                phoneNumber: nil
-            )
-        } else {
-            // For phone signup, we need to use a different method
-            // Since the current signup method requires email, we'll need to update OnboardingViewModel
-            // For now, show an error
-            viewModel.authErrorMessage = "Phone signup not yet implemented"
-            viewModel.showAuthError = true
-        }
+        await viewModel.signup(
+            name: displayName.isEmpty ? email : displayName,
+            email: email,
+            password: password,
+            firstName: firstName.isEmpty ? nil : firstName,
+            lastName: lastName.isEmpty ? nil : lastName,
+            phoneNumber: nil
+        )
         
         if viewModel.isAuthenticated {
             dismiss()
         }
     }
 }
-
